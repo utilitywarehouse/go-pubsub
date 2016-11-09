@@ -13,7 +13,7 @@ func main() {
 
 	produce()
 
-	cons, err := nats.NewNatsMessageSource("demo-topic", "consumer-02", "nats://localhost:4222")
+	cons, err := nats.NewMessageSource("cluster-id", "demo-topic", "consumer-02", "nats://localhost:4222")
 	if err != nil {
 		panic(err)
 		log.Fatal(err)
@@ -37,7 +37,7 @@ func main() {
 	}()
 
 	// consume for 2 seconds, then close
-	time.Sleep(9 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	if err := cons.Close(); err != nil {
 		log.Fatal(err)
@@ -46,7 +46,7 @@ func main() {
 }
 
 func produce() {
-	sink, err := nats.NewMessageSink("demo-topic", "consumer-01", "nats://localhost:4222")
+	sink, err := nats.NewMessageSink("cluster-id", "demo-topic", "consumer-01", "nats://localhost:4222")
 	if err != nil {
 		panic(err)
 		log.Fatal(err)

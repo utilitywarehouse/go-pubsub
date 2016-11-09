@@ -8,15 +8,15 @@ import (
 
 var _ pubsub.MessageSource = (*NatsMessageSource)(nil)
 
-// NatsMessageSource is a MessageSource based on a nats queue
+// MessageSource is a MessageSource based on a nats queue
 type NatsMessageSource struct {
 	topic string
 	conn  stan.Conn
 }
 
-func NewNatsMessageSource(topic string, consumerID string, natsURL string) (pubsub.MessageSource, error) {
+func NewMessageSource(clusterID, topic, consumerID, natsURL string) (pubsub.MessageSource, error) {
 
-	conn, err := stan.Connect("cluster-id", "consumerID", stan.NatsURL(natsURL))
+	conn, err := stan.Connect(clusterID, consumerID, stan.NatsURL(natsURL))
 	if err != nil {
 		return nil, err
 	}

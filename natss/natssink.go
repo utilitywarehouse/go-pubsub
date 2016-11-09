@@ -14,9 +14,9 @@ type NatsMessageSink struct {
 	conn stan.Conn
 }
 
-func NewMessageSink(topic string, consumerID string, natsURL string) (pubsub.MessageSink, error) {
+func NewMessageSink(clusterID, topic, consumerID, natsURL string) (pubsub.MessageSink, error) {
 
-	conn, err := stan.Connect("cluster-id", consumerID, stan.NatsURL(natsURL))
+	conn, err := stan.Connect(clusterID, consumerID, stan.NatsURL(natsURL))
 	if err != nil {
 		return nil, err
 	}
