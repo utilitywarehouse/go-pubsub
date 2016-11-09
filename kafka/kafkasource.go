@@ -7,10 +7,9 @@ import (
 	"github.com/wvanbergen/kafka/consumergroup"
 )
 
-var _ pubsub.MessageSource = (*KafkaMessageSource)(nil)
+var _ pubsub.MessageSource = (*messageSource)(nil)
 
-// KafkaMessageSource is a MessageSource based on a kafka topic
-type KafkaMessageSource struct {
+type messageSource struct {
 	consumergroup string
 	topic         string
 	zookeepers    []string
@@ -19,8 +18,8 @@ type KafkaMessageSource struct {
 	closed chan struct{}
 }
 
-func NewKafkaMessageSource(consumergroup, topic string, zookeepers []string) pubsub.MessageSource {
-	return &KafkaMessageSource{
+func NewMessageSource(consumergroup, topic string, zookeepers []string) pubsub.MessageSource {
+	return &messageSource{
 		consumergroup: consumergroup,
 		topic:         topic,
 		zookeepers:    zookeepers,
@@ -30,7 +29,7 @@ func NewKafkaMessageSource(consumergroup, topic string, zookeepers []string) pub
 	}
 }
 
-func (mq *KafkaMessageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
 
 	conf := consumergroup.NewConfig()
 
@@ -62,7 +61,7 @@ func (mq *KafkaMessageSource) ConsumeMessages(handler pubsub.MessageHandler, onE
 	}
 }
 
-func (mq *KafkaMessageSource) Close() error {
+func (mq *messageSource) Close() error {
 	select {
 	case <-mq.closed:
 		return errors.New("Already closed")

@@ -6,10 +6,9 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-var _ pubsub.MessageSource = (*NatsMessageSource)(nil)
+var _ pubsub.MessageSource = (*messageSource)(nil)
 
-// MessageSource is a MessageSource based on a nats queue
-type NatsMessageSource struct {
+type messageSource struct {
 	topic string
 	conn  stan.Conn
 }
@@ -21,13 +20,13 @@ func NewMessageSource(clusterID, topic, consumerID, natsURL string) (pubsub.Mess
 		return nil, err
 	}
 
-	return &NatsMessageSource{
+	return &messageSource{
 		topic: topic,
 		conn:  conn,
 	}, nil
 }
 
-func (mq *NatsMessageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
 
 	f := func(msg *stan.Msg) {
 		m := pubsub.Message{msg.Data}
@@ -51,6 +50,6 @@ func (mq *NatsMessageSource) ConsumeMessages(handler pubsub.MessageHandler, onEr
 	return nil
 }
 
-func (mq *NatsMessageSource) Close() error {
+func (mq *messageSource) Close() error {
 	return mq.conn.Close()
 }

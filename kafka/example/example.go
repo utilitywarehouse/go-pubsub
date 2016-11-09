@@ -13,7 +13,7 @@ func main() {
 
 	produce()
 
-	cons := kafka.NewKafkaMessageSource("demo-group", "demo-topic", []string{"localhost:2181"})
+	cons := kafka.NewMessageSource("demo-group", "demo-topic", []string{"localhost:2181"})
 
 	// consume messages
 	go func() {
@@ -42,7 +42,7 @@ func main() {
 }
 
 func produce() {
-	sink, err := kafka.NewKafkaMessageSink("demo-topic", []string{"localhost:9092"})
+	sink, err := kafka.NewMessageSink("demo-topic", []string{"localhost:9092"})
 	if err != nil {
 		log.Fatal(err)
 	}

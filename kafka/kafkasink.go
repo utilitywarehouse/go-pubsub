@@ -8,10 +8,9 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-var _ pubsub.MessageSink = (*KafkaMessageSink)(nil)
+var _ pubsub.MessageSink = (*messageSink)(nil)
 
-// KafkaMessageSink is a MessageSource based on a kafka topic
-type KafkaMessageSink struct {
+type messageSink struct {
 	topic string
 
 	lk       sync.Mutex
@@ -19,7 +18,7 @@ type KafkaMessageSink struct {
 	closed   bool
 }
 
-func NewKafkaMessageSink(topic string, brokers []string) (pubsub.MessageSink, error) {
+func NewMessageSink(topic string, brokers []string) (pubsub.MessageSink, error) {
 
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
@@ -30,13 +29,13 @@ func NewKafkaMessageSink(topic string, brokers []string) (pubsub.MessageSink, er
 		return nil, err
 	}
 
-	return &KafkaMessageSink{
+	return &messageSink{
 		topic:    topic,
 		producer: producer,
 	}, nil
 }
 
-func (mq *KafkaMessageSink) PutMessage(m pubsub.Message) error {
+func (mq *messageSink) PutMessage(m pubsub.Message) error {
 	message := &sarama.ProducerMessage{Topic: mq.topic, Partition: int32(-1)}
 
 	message.Value = sarama.ByteEncoder(m.Data)
@@ -45,7 +44,7 @@ func (mq *KafkaMessageSink) PutMessage(m pubsub.Message) error {
 	return err
 }
 
-func (mq *KafkaMessageSink) Close() error {
+func (mq *messageSink) Close() error {
 	mq.lk.Lock()
 	defer mq.lk.Unlock()
 
