@@ -26,9 +26,13 @@ func NewNatsMessageSink(topic string, natsURL string) (pubsub.MessageSink, error
 	}, nil
 }
 
-func (mq *messageSink) PutMessage(m pubsub.Message) error {
+func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 	println("publishing message to nats")
-	return mq.conn.Publish(mq.topic, m.Data)
+	data, err := m.Marshal()
+	if err != nil {
+		return err
+	}
+	return mq.conn.Publish(mq.topic, data)
 }
 
 func (mq *messageSink) Close() error {

@@ -35,12 +35,16 @@ func NewMessageSink(topic string, brokers []string) (pubsub.MessageSink, error) 
 	}, nil
 }
 
-func (mq *messageSink) PutMessage(m pubsub.Message) error {
+func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 	message := &sarama.ProducerMessage{Topic: mq.topic, Partition: int32(-1)}
 
-	message.Value = sarama.ByteEncoder(m.Data)
+	data, err := m.Marshal()
+	if err != nil {
+		return err
+	}
+	message.Value = sarama.ByteEncoder(data)
 
-	_, _, err := mq.producer.SendMessage(message)
+	_, _, err = mq.producer.SendMessage(message)
 	return err
 }
 

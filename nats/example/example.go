@@ -19,12 +19,12 @@ func main() {
 	// consume messages
 	go func() {
 
-		handler := func(m pubsub.Message) error {
+		handler := func(m pubsub.ConsumerMessage) error {
 			fmt.Printf("message is: %s\n", m.Data)
 			return nil
 		}
 
-		onError := func(m pubsub.Message, e error) error {
+		onError := func(m pubsub.ConsumerMessage, e error) error {
 			panic("unexpected error")
 		}
 
@@ -50,7 +50,7 @@ func produce() {
 		log.Fatal(err)
 	}
 
-	if err := sink.PutMessage(pubsub.Message{Data: []byte(fmt.Sprintf("hello. it is currently %v", time.Now()))}); err != nil {
+	if err := sink.PutMessage(pubsub.SimpleProducerMessage([]byte(fmt.Sprintf("hello. it is currently %v", time.Now())))); err != nil {
 		log.Fatal(err)
 	}
 

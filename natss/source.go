@@ -26,10 +26,10 @@ func NewMessageSource(clusterID, topic, consumerID, natsURL string) (pubsub.Mess
 	}, nil
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	f := func(msg *stan.Msg) {
-		m := pubsub.Message{msg.Data}
+		m := pubsub.ConsumerMessage{msg.Data}
 		err := handler(m)
 		if err != nil {
 			if err := onError(m, err); err != nil {

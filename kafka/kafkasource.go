@@ -29,7 +29,7 @@ func NewMessageSource(consumergroup, topic string, zookeepers []string) pubsub.M
 	}
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	conf := consumergroup.NewConfig()
 
@@ -43,7 +43,7 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError 
 	for {
 		select {
 		case msg := <-cg.Messages():
-			message := pubsub.Message{Data: msg.Value}
+			message := pubsub.ConsumerMessage{msg.Value}
 			err := handler(message)
 			if err != nil {
 				err := onError(message, err)
