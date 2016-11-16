@@ -18,11 +18,17 @@ type messageSource struct {
 	closed chan struct{}
 }
 
-func NewMessageSource(consumergroup, topic string, zookeepers []string) pubsub.MessageSource {
+type MessageSourceConfig struct {
+	ConsumerGroup string
+	Topic         string
+	Zookeepers    []string
+}
+
+func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 	return &messageSource{
-		consumergroup: consumergroup,
-		topic:         topic,
-		zookeepers:    zookeepers,
+		consumergroup: config.ConsumerGroup,
+		topic:         config.Topic,
+		zookeepers:    config.Zookeepers,
 
 		close:  make(chan struct{}),
 		closed: make(chan struct{}),
