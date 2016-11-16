@@ -54,7 +54,7 @@ func (m MyMessage) Marshal() ([]byte, error) {
 func produce() {
 
 	sink, err := kafka.NewMessageSink(
-		kafka.KafkaSinkConfig{
+		kafka.SinkConfig{
 			Topic:   "demo-topic",
 			Brokers: []string{"localhost:9092"},
 			KeyFunc: func(m pubsub.ProducerMessage) []byte {

@@ -20,13 +20,13 @@ type messageSink struct {
 	closed   bool
 }
 
-type KafkaSinkConfig struct {
+type SinkConfig struct {
 	Topic   string
 	Brokers []string
 	KeyFunc func(pubsub.ProducerMessage) []byte
 }
 
-func NewMessageSink(config KafkaSinkConfig) (pubsub.MessageSink, error) {
+func NewMessageSink(config SinkConfig) (pubsub.MessageSink, error) {
 
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
