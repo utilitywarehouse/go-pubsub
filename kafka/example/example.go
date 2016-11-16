@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -41,13 +42,30 @@ func main() {
 
 }
 
+type MyMessage struct {
+	CustomerID string
+	Message    string
+}
+
+func (m MyMessage) Marshal() ([]byte, error) {
+	return json.Marshal(m)
+}
+
 func produce() {
-	sink, err := kafka.NewMessageSink("demo-topic", []string{"localhost:9092"})
+
+	keyFunc := func(m pubsub.ProducerMessage) []byte {
+		return []byte(m.(MyMessage).CustomerID)
+	}
+
+	sink, err := kafka.NewMessageSink("demo-topic", []string{"localhost:9092"}, keyFunc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sink.PutMessage(pubsub.SimpleProducerMessage([]byte(fmt.Sprintf("hello. it is currently %v", time.Now()))))
+	sink.PutMessage(MyMessage{
+		CustomerID: "customer-01",
+		Message:    fmt.Sprintf("hello. it is currently %v", time.Now()),
+	})
 
 	sink.Close()
 }

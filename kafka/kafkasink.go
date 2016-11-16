@@ -13,12 +13,14 @@ var _ pubsub.MessageSink = (*messageSink)(nil)
 type messageSink struct {
 	topic string
 
+	keyFunc func(pubsub.ProducerMessage) []byte
+
 	lk       sync.Mutex
 	producer sarama.SyncProducer
 	closed   bool
 }
 
-func NewMessageSink(topic string, brokers []string) (pubsub.MessageSink, error) {
+func NewMessageSink(topic string, brokers []string, keyFunc func(pubsub.ProducerMessage) []byte) (pubsub.MessageSink, error) {
 
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
@@ -32,17 +34,21 @@ func NewMessageSink(topic string, brokers []string) (pubsub.MessageSink, error) 
 	return &messageSink{
 		topic:    topic,
 		producer: producer,
+		keyFunc:  keyFunc,
 	}, nil
 }
 
 func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
-	message := &sarama.ProducerMessage{Topic: mq.topic, Partition: int32(-1)}
+	message := &sarama.ProducerMessage{
+		Topic: mq.topic,
+	}
 
 	data, err := m.Marshal()
 	if err != nil {
 		return err
 	}
 	message.Value = sarama.ByteEncoder(data)
+	message.Key = sarama.ByteEncoder(mq.keyFunc(m))
 
 	_, _, err = mq.producer.SendMessage(message)
 	return err
