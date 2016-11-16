@@ -21,15 +21,15 @@ func main() {
 		tick := time.NewTicker(1 * time.Second)
 		for {
 			<-tick.C
-			sink.PutMessage(pubsub.Message{Data: []byte("hello")})
+			sink.PutMessage(pubsub.SimpleProducerMessage([]byte("hello")))
 		}
 	}()
 
 	go func() {
-		onError := func(m pubsub.Message, err error) error {
+		onError := func(m pubsub.ConsumerMessage, err error) error {
 			panic("unexpected error")
 		}
-		handler := func(m pubsub.Message) error {
+		handler := func(m pubsub.ConsumerMessage) error {
 			fmt.Println(string(m.Data))
 			return nil
 		}

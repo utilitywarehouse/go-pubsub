@@ -32,7 +32,7 @@ func NewNatsMessageSource(topic string, natsURL string) (pubsub.MessageSource, e
 	}, nil
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError pubsub.ErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	ch := make(chan *nats.Msg, 64)
 	sub, err := mq.conn.ChanSubscribe(mq.topic, ch)
@@ -45,7 +45,7 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.MessageHandler, onError 
 	for {
 		select {
 		case m := <-ch:
-			msg := pubsub.Message{m.Data}
+			msg := pubsub.ConsumerMessage{m.Data}
 			err := handler(msg)
 			if err != nil {
 				if err := onError(msg, err); err != nil {

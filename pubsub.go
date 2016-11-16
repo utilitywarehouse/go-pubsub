@@ -4,27 +4,38 @@ import (
 	"io"
 )
 
-// Message is an individual message that can be produced or consumed.
-type Message struct {
-	// Data is the raw message data
+// ProducerMessage is an individual message that can be sent
+type ProducerMessage interface {
+	// Marshal returns the message in wire format
+	Marshal() ([]byte, error)
+}
+
+// SimpleProducerMessage is a convenience type for simply sending byte slices.
+type SimpleProducerMessage []byte
+
+func (sm SimpleProducerMessage) Marshal() ([]byte, error) {
+	return []byte(sm), nil
+}
+
+type ConsumerMessage struct {
 	Data []byte
 }
 
 type MessageSink interface {
 	io.Closer
-	PutMessage(Message) error
+	PutMessage(ProducerMessage) error
 }
 
 type MessageSource interface {
 	io.Closer
 	// Consume messages will block until the source is closed
-	ConsumeMessages(handler MessageHandler, onError ErrorHandler) error
+	ConsumeMessages(handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
 }
 
-// MessageHandler processes messages, and should return an error if it is
-// unable to do so.
-type MessageHandler func(Message) error
+// ConsumerMessageHandler processes messages, and should return an error if it
+// is unable to do so.
+type ConsumerMessageHandler func(ConsumerMessage) error
 
-// ErrorHandler is invoked when a message can not be processed.  If an error
-// handler returns an error itself, processing of messages is aborted
-type ErrorHandler func(Message, error) error
+// ConsumerErrorHandler is invoked when a message can not be processed.  If an
+// error handler returns an error itself, processing of messages is aborted
+type ConsumerErrorHandler func(ConsumerMessage, error) error
