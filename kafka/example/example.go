@@ -14,7 +14,11 @@ func main() {
 
 	produce()
 
-	cons := kafka.NewMessageSource("demo-group", "demo-topic", []string{"localhost:2181"})
+	cons := kafka.NewMessageSource(kafka.MessageSourceConfig{
+		ConsumerGroup: "demo-group",
+		Topic:         "demo-topic",
+		Zookeepers:    []string{"localhost:2181"},
+	})
 
 	// consume messages
 	go func() {
@@ -54,7 +58,7 @@ func (m MyMessage) Marshal() ([]byte, error) {
 func produce() {
 
 	sink, err := kafka.NewMessageSink(
-		kafka.SinkConfig{
+		kafka.MessageSinkConfig{
 			Topic:   "demo-topic",
 			Brokers: []string{"localhost:9092"},
 			KeyFunc: func(m pubsub.ProducerMessage) []byte {
