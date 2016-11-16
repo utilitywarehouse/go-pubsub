@@ -20,21 +20,31 @@ type messageSink struct {
 	closed   bool
 }
 
-func NewMessageSink(topic string, brokers []string, keyFunc func(pubsub.ProducerMessage) []byte) (pubsub.MessageSink, error) {
+type SinkConfig struct {
+	Topic   string
+	Brokers []string
+	KeyFunc func(pubsub.ProducerMessage) []byte
+}
+
+func NewMessageSink(config SinkConfig) (pubsub.MessageSink, error) {
 
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
-	conf.Producer.Partitioner = sarama.NewHashPartitioner
+	if config.KeyFunc != nil {
+		conf.Producer.Partitioner = sarama.NewHashPartitioner
+	} else {
+		conf.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	}
 
-	producer, err := sarama.NewSyncProducer(brokers, conf)
+	producer, err := sarama.NewSyncProducer(config.Brokers, conf)
 	if err != nil {
 		return nil, err
 	}
 
 	return &messageSink{
-		topic:    topic,
+		topic:    config.Topic,
 		producer: producer,
-		keyFunc:  keyFunc,
+		keyFunc:  config.KeyFunc,
 	}, nil
 }
 
@@ -48,7 +58,9 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 		return err
 	}
 	message.Value = sarama.ByteEncoder(data)
-	message.Key = sarama.ByteEncoder(mq.keyFunc(m))
+	if mq.keyFunc != nil {
+		message.Key = sarama.ByteEncoder(mq.keyFunc(m))
+	}
 
 	_, _, err = mq.producer.SendMessage(message)
 	return err
