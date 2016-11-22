@@ -48,7 +48,10 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 		return err
 	}
 
-	defer close(mq.closed)
+	defer func() {
+		_ = cg.Close()
+		close(mq.closed)
+	}()
 
 	for {
 		select {
