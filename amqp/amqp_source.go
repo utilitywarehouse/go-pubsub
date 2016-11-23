@@ -37,7 +37,7 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 
 func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
-	conn, err := amqp.Dial(mq.address) //"amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial(mq.address)
 	if err != nil {
 		return err
 	}
