@@ -71,15 +71,13 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 		Body: data,
 	}
 
-	err = mq.channel.Publish(
+	return mq.channel.Publish(
 		"",        // exchange
 		mq.q.Name, // routing key
 		true,      // mandatory
 		false,     // immediate
 		p,
 	)
-
-	return nil
 }
 
 func (mq *messageSink) Close() error {

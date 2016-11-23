@@ -57,6 +57,9 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 		false,    // no-wait
 		nil,      // arguments
 	)
+	if err != nil {
+		return err
+	}
 
 	msgs, err := ch.Consume(
 		q.Name,           // queue
@@ -67,6 +70,9 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 		false,            // no-wait
 		nil,              // args
 	)
+	if err != nil {
+		return err
+	}
 
 	defer close(mq.closed)
 
