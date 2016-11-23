@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"time"
 
 	"github.com/utilitywarehouse/go-pubsub"
 	"github.com/wvanbergen/kafka/consumergroup"
@@ -35,16 +36,22 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 	}
 }
 
+var processingTimeout = 60 * time.Second
+
 func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	conf := consumergroup.NewConfig()
+	conf.Offsets.ProcessingTimeout = processingTimeout
 
 	cg, err := consumergroup.JoinConsumerGroup(mq.consumergroup, []string{mq.topic}, mq.zookeepers, conf)
 	if err != nil {
 		return err
 	}
 
-	defer close(mq.closed)
+	defer func() {
+		_ = cg.Close()
+		close(mq.closed)
+	}()
 
 	for {
 		select {
