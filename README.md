@@ -1,13 +1,19 @@
-#go-pubsub
+go-pubsub
+=========
 
 A simple abstraction for message publishing and consumption that presents a uniform API, regardless of the underlying implementation.
 
-Current implementations are
+Current implementations and their status
+----------------------------------------
 
-- Mock (in memory testing implementation)
-- Apache Kafka
-- Nats
-- Nats (streaming)
+| Implementation                           | Status        |
+| ---------------------------------------- | ------------- |
+| Mock (in memory testing implementation)  | incomplete    |
+| Apache Kafka                             | beta          |
+| Nats                                     | incomplete    |
+| Nats (streaming)                         | incomplete    |
+| AMQP                                     | incomplete    |
 
 
-THIS IS A WORK IN PROGRESS.  IT IS NOT TESTED AND THE API IS NOT STABLE.
+The API is not yet guaranteed but changes should be minimal from now.
+
