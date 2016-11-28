@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -16,29 +17,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// consume messages
 	go func() {
-
-		handler := func(m pubsub.ConsumerMessage) error {
-			fmt.Printf("message is: %s\n", m.Data)
-			return nil
-		}
-
-		onError := func(m pubsub.ConsumerMessage, e error) error {
-			panic("unexpected error")
-		}
-
-		if err := cons.ConsumeMessages(handler, onError); err != nil {
-			log.Fatal(err)
-		}
+		time.Sleep(1 * time.Second)
+		produce()
 	}()
+	// consume messages
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
 
-	produce()
+	handler := func(m pubsub.ConsumerMessage) error {
+		fmt.Printf("message is: %s\n", m.Data)
+		return nil
+	}
 
-	// consume for 2 seconds, then close
-	time.Sleep(2 * time.Second)
+	onError := func(m pubsub.ConsumerMessage, e error) error {
+		panic("unexpected error")
+	}
 
-	if err := cons.Close(); err != nil {
+	if err := cons.ConsumeMessages(ctx, handler, onError); err != nil {
 		log.Fatal(err)
 	}
 

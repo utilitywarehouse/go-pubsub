@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -26,35 +27,25 @@ func main() {
 		Message:    fmt.Sprintf("hello. it is currently %v", time.Now()),
 	})
 
-	defer sink.Close()
-
 	cons := amqp.NewMessageSource(amqp.MessageSourceConfig{
 		Address:       "amqp://localhost:5672/",
 		ConsumerGroup: "demo-group",
 		Topic:         "demo-topic",
 	})
 
-	// consume messages
-	go func() {
+	// consume messages for 2 seconds
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
 
-		handler := func(m pubsub.ConsumerMessage) error {
-			fmt.Printf("message is: %s\n", m.Data)
-			return nil
-		}
+	handler := func(m pubsub.ConsumerMessage) error {
+		fmt.Printf("message is: %s\n", m.Data)
+		return nil
+	}
 
-		onError := func(m pubsub.ConsumerMessage, e error) error {
-			panic("unexpected error")
-		}
+	onError := func(m pubsub.ConsumerMessage, e error) error {
+		panic("unexpected error")
+	}
 
-		if err := cons.ConsumeMessages(handler, onError); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	// consume for 2 seconds, then close
-	time.Sleep(2 * time.Second)
-
-	if err := cons.Close(); err != nil {
+	if err := cons.ConsumeMessages(ctx, handler, onError); err != nil {
 		log.Fatal(err)
 	}
 

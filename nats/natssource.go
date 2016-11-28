@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"context"
+
 	"github.com/nats-io/nats"
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -8,39 +10,31 @@ import (
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
 type messageSource struct {
-	topic string
-
-	conn *nats.Conn
-
-	close  chan struct{}
-	closed chan struct{}
+	topic   string
+	natsURL string
 }
 
 func NewNatsMessageSource(topic string, natsURL string) (pubsub.MessageSource, error) {
 
-	conn, err := nats.Connect(natsURL)
-	if err != nil {
-		return nil, err
-	}
-
 	return &messageSource{
-		topic: topic,
-		conn:  conn,
-
-		close:  make(chan struct{}),
-		closed: make(chan struct{}),
+		topic:   topic,
+		natsURL: natsURL,
 	}, nil
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
-	ch := make(chan *nats.Msg, 64)
-	sub, err := mq.conn.ChanSubscribe(mq.topic, ch)
+	conn, err := nats.Connect(mq.natsURL)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
-	defer close(mq.closed)
+	ch := make(chan *nats.Msg, 64)
+	sub, err := conn.ChanSubscribe(mq.topic, ch)
+	if err != nil {
+		return err
+	}
 
 	for {
 		select {
@@ -52,7 +46,7 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 					return err
 				}
 			}
-		case <-mq.close:
+		case <-ctx.Done():
 			return sub.Unsubscribe()
 		}
 	}
@@ -68,9 +62,4 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 			}
 		})
 	*/
-}
-
-func (mq *messageSource) Close() error {
-	mq.conn.Close()
-	return nil
 }

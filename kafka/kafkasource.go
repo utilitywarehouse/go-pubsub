@@ -1,7 +1,7 @@
 package kafka
 
 import (
-	"errors"
+	"context"
 	"time"
 
 	"github.com/utilitywarehouse/go-pubsub"
@@ -14,9 +14,6 @@ type messageSource struct {
 	consumergroup string
 	topic         string
 	zookeepers    []string
-
-	close  chan struct{}
-	closed chan struct{}
 }
 
 type MessageSourceConfig struct {
@@ -30,15 +27,12 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 		consumergroup: config.ConsumerGroup,
 		topic:         config.Topic,
 		zookeepers:    config.Zookeepers,
-
-		close:  make(chan struct{}),
-		closed: make(chan struct{}),
 	}
 }
 
 var processingTimeout = 60 * time.Second
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	conf := consumergroup.NewConfig()
 	conf.Offsets.ProcessingTimeout = processingTimeout
@@ -50,7 +44,6 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 
 	defer func() {
 		_ = cg.Close()
-		close(mq.closed)
 	}()
 
 	for {
@@ -68,18 +61,8 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 			cg.CommitUpto(msg)
 		case err := <-cg.Errors():
 			return err
-		case <-mq.close:
+		case <-ctx.Done():
 			return cg.Close()
 		}
-	}
-}
-
-func (mq *messageSource) Close() error {
-	select {
-	case <-mq.closed:
-		return errors.New("Already closed")
-	case mq.close <- struct{}{}:
-		<-mq.closed
-		return nil
 	}
 }
