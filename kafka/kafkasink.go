@@ -30,6 +30,9 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
+	conf.Producer.Return.Successes = true
+	conf.Producer.Return.Errors = true
+
 	if config.KeyFunc != nil {
 		conf.Producer.Partitioner = sarama.NewHashPartitioner
 	} else {
