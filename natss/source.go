@@ -1,6 +1,8 @@
 package natss
 
 import (
+	"context"
+
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -9,24 +11,28 @@ import (
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
 type messageSource struct {
-	topic string
-	conn  stan.Conn
+	natsURL    string
+	clusterID  string
+	consumerID string
+	topic      string
 }
 
-func NewMessageSource(clusterID, topic, consumerID, natsURL string) (pubsub.MessageSource, error) {
-
-	conn, err := stan.Connect(clusterID, consumerID, stan.NatsURL(natsURL))
-	if err != nil {
-		return nil, err
-	}
-
+func NewMessageSource(natsURL, clusterID, consumerID, topic string) (pubsub.MessageSource, error) {
 	return &messageSource{
-		topic: topic,
-		conn:  conn,
+		natsURL:    natsURL,
+		clusterID:  clusterID,
+		consumerID: consumerID,
+		topic:      topic,
 	}, nil
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+
+	conn, err := stan.Connect(mq.clusterID, mq.consumerID, stan.NatsURL(mq.natsURL))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	f := func(msg *stan.Msg) {
 		m := pubsub.ConsumerMessage{msg.Data}
@@ -38,18 +44,16 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 		}
 	}
 
-	startOpt := stan.StartAt(pb.StartPosition_NewOnly)
+	startOpt := stan.StartAt(pb.StartPosition_First)
 
-	groupName := "groupName"
-
-	_, err := mq.conn.QueueSubscribe("demo-topic", groupName, f, startOpt, stan.DurableName(groupName))
+	_, err = conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID))
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
+	//	s.Unsubscribe()
+	<-ctx.Done()
+	conn.Close()
 
-func (mq *messageSource) Close() error {
-	return mq.conn.Close()
+	return nil
 }

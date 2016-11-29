@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -36,31 +37,31 @@ func TestSimpleProduceConsume(t *testing.T) {
 	msg := make(chan string, 1)
 
 	cons := NewMessageSource(MessageSourceConfig{"test-group", topicName, []string{*zk}})
-	defer cons.Close()
 
-	go func() {
-		handler := func(m pubsub.ConsumerMessage) error {
-			msg <- string(m.Data)
-			close(msg)
-			return nil
-		}
+	handler := func(m pubsub.ConsumerMessage) error {
+		msg <- string(m.Data)
+		close(msg)
+		return nil
+	}
 
-		onError := func(m pubsub.ConsumerMessage, e error) error {
-			t.Error("unexpected error")
-			return nil
-		}
-		if err := cons.ConsumeMessages(handler, onError); err != nil {
-			t.Error(err)
-		}
-	}()
+	onError := func(m pubsub.ConsumerMessage, e error) error {
+		t.Error("unexpected error")
+		return nil
+	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+
+	if err := cons.ConsumeMessages(ctx, handler, onError); err != nil {
+		t.Error(err)
+	}
 
 	select {
 	case m := <-msg:
 		if m != message {
 			t.Error("message not as expected")
 		}
-	case <-time.After(2 * time.Second):
-		t.Error("timeout waiting for message")
+	default:
+		t.Error("didn't get message")
 	}
 }
 
@@ -88,17 +89,9 @@ func TestConsumeError(t *testing.T) {
 			return errors.New("onError error")
 		}
 
-		consumeErr := make(chan error, 1)
-		go func() {
-			consumeErr <- cons.ConsumeMessages(handler, onError)
-		}()
+		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
 
-		<-doneMsg
-		err := cons.Close()
-		if err == nil {
-			t.Error("Expected error due to being already closed")
-		}
-
+		consumeErr := cons.ConsumeMessages(ctx, handler, onError)
 		if consumeErr == nil {
 			t.Error("expected error")
 		}
@@ -107,25 +100,24 @@ func TestConsumeError(t *testing.T) {
 	{
 		// message should be still available to consume
 		cons2 := NewMessageSource(MessageSourceConfig{"test-group", topicName, []string{*zk}})
-		defer cons2.Close()
 
 		msg := make(chan string, 1)
 
-		go func() {
-			handler := func(m pubsub.ConsumerMessage) error {
-				msg <- string(m.Data)
-				close(msg)
-				return nil
-			}
+		handler := func(m pubsub.ConsumerMessage) error {
+			msg <- string(m.Data)
+			close(msg)
+			return nil
+		}
 
-			onError := func(m pubsub.ConsumerMessage, e error) error {
-				t.Error("unexpected error")
-				return nil
-			}
-			if err := cons2.ConsumeMessages(handler, onError); err != nil {
-				t.Error(err)
-			}
-		}()
+		onError := func(m pubsub.ConsumerMessage, e error) error {
+			t.Error("unexpected error")
+			return nil
+		}
+
+		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+		if err := cons2.ConsumeMessages(ctx, handler, onError); err != nil {
+			t.Error(err)
+		}
 
 		select {
 		case m := <-msg:

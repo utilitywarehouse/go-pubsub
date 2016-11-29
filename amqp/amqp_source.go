@@ -1,7 +1,7 @@
 package amqp
 
 import (
-	"errors"
+	"context"
 
 	"github.com/streadway/amqp"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -13,9 +13,6 @@ type messageSource struct {
 	consumergroup string
 	topic         string
 	address       string
-
-	close  chan struct{}
-	closed chan struct{}
 }
 
 type MessageSourceConfig struct {
@@ -29,13 +26,10 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 		consumergroup: config.ConsumerGroup,
 		topic:         config.Topic,
 		address:       config.Address,
-
-		close:  make(chan struct{}),
-		closed: make(chan struct{}),
 	}
 }
 
-func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
 	conn, err := amqp.Dial(mq.address)
 	if err != nil {
@@ -74,8 +68,6 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 		return err
 	}
 
-	defer close(mq.closed)
-
 	for {
 		select {
 		case msg := <-msgs:
@@ -89,18 +81,8 @@ func (mq *messageSource) ConsumeMessages(handler pubsub.ConsumerMessageHandler, 
 			}
 
 			msg.Ack(false)
-		case <-mq.close:
+		case <-ctx.Done():
 			return ch.Close()
 		}
-	}
-}
-
-func (mq *messageSource) Close() error {
-	select {
-	case <-mq.closed:
-		return errors.New("Already closed")
-	case mq.close <- struct{}{}:
-		<-mq.closed
-		return nil
 	}
 }

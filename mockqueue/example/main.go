@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -18,30 +19,24 @@ func main() {
 	var sink pubsub.MessageSink = q
 
 	go func() {
-		tick := time.NewTicker(1 * time.Second)
+		tick := time.NewTicker(500 * time.Millisecond)
 		for {
 			<-tick.C
 			sink.PutMessage(pubsub.SimpleProducerMessage([]byte("hello")))
 		}
 	}()
 
-	go func() {
-		onError := func(m pubsub.ConsumerMessage, err error) error {
-			panic("unexpected error")
-		}
-		handler := func(m pubsub.ConsumerMessage) error {
-			fmt.Println(string(m.Data))
-			return nil
-		}
+	onError := func(m pubsub.ConsumerMessage, err error) error {
+		panic("unexpected error")
+	}
+	handler := func(m pubsub.ConsumerMessage) error {
+		fmt.Println(string(m.Data))
+		return nil
+	}
 
-		if err := cons.ConsumeMessages(handler, onError); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	ctx, _ := context.WithTimeout(context.Background(), 750*time.Millisecond)
 
-	time.Sleep(5 * time.Second)
-
-	if err := q.Close(); err != nil {
+	if err := cons.ConsumeMessages(ctx, handler, onError); err != nil {
 		log.Fatal(err)
 	}
 

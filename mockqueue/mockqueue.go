@@ -1,7 +1,7 @@
 package mockqueue
 
 import (
-	"errors"
+	"context"
 
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -30,11 +30,10 @@ func (mq *MockQueue) PutMessage(m pubsub.ProducerMessage) error {
 	return nil
 }
 
-func (mq *MockQueue) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *MockQueue) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 	for {
 		select {
-		case <-mq.close:
-			close(mq.closed)
+		case <-ctx.Done():
 			return nil
 		case m := <-mq.q:
 			cm := pubsub.ConsumerMessage{m}
@@ -49,11 +48,6 @@ func (mq *MockQueue) ConsumeMessages(handler pubsub.ConsumerMessageHandler, onEr
 }
 
 func (mq *MockQueue) Close() error {
-	select {
-	case <-mq.closed:
-		return errors.New("Already closed")
-	case mq.close <- struct{}{}:
-		<-mq.closed
-		return nil
-	}
+	// no-op in mock.
+	return nil
 }

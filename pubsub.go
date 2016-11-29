@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"context"
 	"io"
 )
 
@@ -27,9 +28,8 @@ type MessageSink interface {
 }
 
 type MessageSource interface {
-	io.Closer
-	// Consume messages will block until the source is closed
-	ConsumeMessages(handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
+	// Consume messages will block until error or until the context is done.
+	ConsumeMessages(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
 }
 
 // ConsumerMessageHandler processes messages, and should return an error if it
