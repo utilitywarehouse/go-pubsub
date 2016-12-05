@@ -4,51 +4,70 @@ import (
 	"context"
 	"time"
 
+	"github.com/bsm/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
-	"github.com/wvanbergen/kafka/consumergroup"
 )
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
+const (
+	OffsetOldest int64 = -2
+	OffsetLatest int64 = -1
+)
+
 type messageSource struct {
 	consumergroup string
 	topic         string
-	zookeepers    []string
+	brokers       []string
+	offset        int64
 }
 
 type MessageSourceConfig struct {
 	ConsumerGroup string
 	Topic         string
-	Zookeepers    []string
+	//Deprecated: use Brokers instead
+	Zookeepers []string
+	Brokers    []string
+	Offset     int64
 }
 
 func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
+	brokers := config.Brokers
+	if brokers == nil {
+		brokers = config.Zookeepers
+	}
+
+	offset := OffsetLatest
+	if config.Offset != 0 {
+		offset = config.Offset
+	}
+
 	return &messageSource{
 		consumergroup: config.ConsumerGroup,
 		topic:         config.Topic,
-		zookeepers:    config.Zookeepers,
+		brokers:       brokers,
+		offset:        offset,
 	}
 }
 
 var processingTimeout = 60 * time.Second
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-
-	conf := consumergroup.NewConfig()
-	conf.Offsets.ProcessingTimeout = processingTimeout
-
-	cg, err := consumergroup.JoinConsumerGroup(mq.consumergroup, []string{mq.topic}, mq.zookeepers, conf)
+	config := cluster.NewConfig()
+	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.Initial = mq.offset
+	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		_ = cg.Close()
+		_ = c.Close()
 	}()
 
 	for {
 		select {
-		case msg := <-cg.Messages():
+		case msg := <-c.Messages():
 			message := pubsub.ConsumerMessage{msg.Value}
 			err := handler(message)
 			if err != nil {
@@ -58,11 +77,11 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 				}
 			}
 
-			cg.CommitUpto(msg)
-		case err := <-cg.Errors():
+			c.MarkOffset(msg, "")
+		case err := <-c.Errors():
 			return err
 		case <-ctx.Done():
-			return cg.Close()
+			return c.Close()
 		}
 	}
 }
