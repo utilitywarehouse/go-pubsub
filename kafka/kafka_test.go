@@ -14,7 +14,6 @@ import (
 
 var (
 	broker = flag.String("broker", "", "kafka broker address")
-	zk     = flag.String("zk", "", "zookeeper address")
 )
 
 func TestMain(m *testing.M) {
@@ -24,9 +23,60 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
+func TestNewMessageSourceBackwardsCompatible(t *testing.T) {
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Zookeepers: []string{"localhost:9092"}}).(*messageSource)
+	if cons.consumergroup != "test-group" {
+		t.Error("unexpected consumer group")
+	}
+	if cons.topic != "topic" {
+		t.Error("unexpected topic")
+	}
+	if cons.brokers[0] != "localhost:9092" {
+		t.Error("unexpected brokers")
+	}
+	if cons.offset != OffsetLatest {
+		t.Error("unexpected offset")
+	}
+}
+
+func TestNewMessageSource(t *testing.T) {
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}, Offset: OffsetOldest}).(*messageSource)
+	if cons.consumergroup != "test-group" {
+		t.Error("unexpected consumer group")
+	}
+	if cons.topic != "topic" {
+		t.Error("unexpected topic")
+	}
+
+	if cons.brokers[0] != "localhost:9092" {
+		t.Error("unexpected brokers")
+	}
+	if cons.offset != OffsetOldest {
+		t.Error("unexpected offset")
+	}
+
+}
+
+func TestNewMessageSourceOffsetsDefaultToLatest(t *testing.T) {
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}}).(*messageSource)
+	if cons.consumergroup != "test-group" {
+		t.Error("unexpected consumer group")
+	}
+	if cons.topic != "topic" {
+		t.Error("unexpected topic")
+	}
+	if cons.brokers[0] != "localhost:9092" {
+		t.Error("unexpected brokers")
+	}
+	if cons.offset != OffsetLatest {
+		t.Error("unexpected offset")
+	}
+
+}
+
 func TestSimpleProduceConsume(t *testing.T) {
-	if *broker == "" || *zk == "" {
-		t.Skip("kafka and zookeeper not configured")
+	if *broker == "" {
+		t.Skip("kafka not configured")
 	}
 
 	topicName := uuid.NewRandom().String()
@@ -36,7 +86,7 @@ func TestSimpleProduceConsume(t *testing.T) {
 
 	msg := make(chan string, 1)
 
-	cons := NewMessageSource(MessageSourceConfig{"test-group", topicName, []string{*zk}})
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: topicName, Brokers: []string{*broker}, Offset: OffsetOldest})
 
 	handler := func(m pubsub.ConsumerMessage) error {
 		msg <- string(m.Data)
@@ -66,8 +116,8 @@ func TestSimpleProduceConsume(t *testing.T) {
 }
 
 func TestConsumeError(t *testing.T) {
-	if *broker == "" || *zk == "" {
-		t.Skip("kafka and zookeeper not configured")
+	if *broker == "" {
+		t.Skip("kafka  not configured")
 	}
 
 	topicName := uuid.NewRandom().String()
@@ -76,7 +126,7 @@ func TestConsumeError(t *testing.T) {
 	produceMessage(t, topicName, message)
 
 	{
-		cons := NewMessageSource(MessageSourceConfig{"test-group", topicName, []string{*zk}})
+		cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: topicName, Brokers: []string{*broker}, Offset: OffsetOldest})
 
 		doneMsg := make(chan struct{})
 
@@ -99,7 +149,7 @@ func TestConsumeError(t *testing.T) {
 
 	{
 		// message should be still available to consume
-		cons2 := NewMessageSource(MessageSourceConfig{"test-group", topicName, []string{*zk}})
+		cons2 := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: topicName, Brokers: []string{*broker}, Offset: OffsetOldest})
 
 		msg := make(chan string, 1)
 

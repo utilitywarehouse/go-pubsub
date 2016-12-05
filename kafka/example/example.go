@@ -18,7 +18,8 @@ func main() {
 	cons := kafka.NewMessageSource(kafka.MessageSourceConfig{
 		ConsumerGroup: "demo-group",
 		Topic:         "demo-topic",
-		Zookeepers:    []string{"localhost:2181"},
+		Brokers:       []string{"localhost:9092"},
+		Offset:        kafka.OffsetOldest,
 	})
 
 	// consume messages for 2 seconds
