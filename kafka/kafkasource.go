@@ -25,17 +25,11 @@ type messageSource struct {
 type MessageSourceConfig struct {
 	ConsumerGroup string
 	Topic         string
-	//Deprecated: use Brokers instead
-	Zookeepers []string
-	Brokers    []string
-	Offset     int64
+	Brokers       []string
+	Offset        int64
 }
 
 func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
-	brokers := config.Brokers
-	if brokers == nil {
-		brokers = config.Zookeepers
-	}
 
 	offset := OffsetLatest
 	if config.Offset != 0 {
@@ -45,7 +39,7 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 	return &messageSource{
 		consumergroup: config.ConsumerGroup,
 		topic:         config.Topic,
-		brokers:       brokers,
+		brokers:       config.Brokers,
 		offset:        offset,
 	}
 }

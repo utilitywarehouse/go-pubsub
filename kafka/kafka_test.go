@@ -23,22 +23,6 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func TestNewMessageSourceBackwardsCompatible(t *testing.T) {
-	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Zookeepers: []string{"localhost:9092"}}).(*messageSource)
-	if cons.consumergroup != "test-group" {
-		t.Error("unexpected consumer group")
-	}
-	if cons.topic != "topic" {
-		t.Error("unexpected topic")
-	}
-	if cons.brokers[0] != "localhost:9092" {
-		t.Error("unexpected brokers")
-	}
-	if cons.offset != OffsetLatest {
-		t.Error("unexpected offset")
-	}
-}
-
 func TestNewMessageSource(t *testing.T) {
 	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}, Offset: OffsetOldest}).(*messageSource)
 	if cons.consumergroup != "test-group" {
