@@ -23,7 +23,8 @@ func main() {
 	})
 
 	// consume messages for 2 seconds
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
 	handler := func(m pubsub.ConsumerMessage) error {
 		fmt.Printf("message is: %s\n", m.Data)

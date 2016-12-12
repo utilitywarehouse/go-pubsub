@@ -69,10 +69,10 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	for {
 		select {
 		case msg := <-c.Messages():
-			message := pubsub.ConsumerMessage{msg.Value}
+			message := pubsub.ConsumerMessage{Data: msg.Value}
 			err := handler(message)
 			if err != nil {
-				err := onError(message, err)
+				err = onError(message, err)
 				if err != nil {
 					return err
 				}

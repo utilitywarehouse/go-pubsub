@@ -105,7 +105,8 @@ func TestSimpleProduceConsume(t *testing.T) {
 		return nil
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
 	if err := cons.ConsumeMessages(ctx, handler, onError); err != nil {
 		t.Error(err)
@@ -145,7 +146,8 @@ func TestConsumeError(t *testing.T) {
 			return errors.New("onError error")
 		}
 
-		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
 		consumeErr := cons.ConsumeMessages(ctx, handler, onError)
 		if consumeErr == nil {
@@ -170,7 +172,9 @@ func TestConsumeError(t *testing.T) {
 			return nil
 		}
 
-		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
 		if err := cons2.ConsumeMessages(ctx, handler, onError); err != nil {
 			t.Error(err)
 		}
