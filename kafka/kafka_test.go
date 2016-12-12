@@ -18,13 +18,12 @@ var (
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	processingTimeout = 1 * time.Second
 	result := m.Run()
 	os.Exit(result)
 }
 
 func TestNewMessageSource(t *testing.T) {
-	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}, Offset: OffsetOldest}).(*messageSource)
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}, Offset: OffsetOldest, MetadataRefreshFrequency: 1 * time.Second}).(*messageSource)
 	if cons.consumergroup != "test-group" {
 		t.Error("unexpected consumer group")
 	}
@@ -37,6 +36,9 @@ func TestNewMessageSource(t *testing.T) {
 	}
 	if cons.offset != OffsetOldest {
 		t.Error("unexpected offset")
+	}
+	if cons.metadataRefreshFrequency != 1*time.Second {
+		t.Error("unexpected metadata refresh frequency")
 	}
 
 }
@@ -54,6 +56,26 @@ func TestNewMessageSourceOffsetsDefaultToLatest(t *testing.T) {
 	}
 	if cons.offset != OffsetLatest {
 		t.Error("unexpected offset")
+	}
+
+}
+
+func TestNewMessageSourceMetadataRefreshFrequencyDefault(t *testing.T) {
+	cons := NewMessageSource(MessageSourceConfig{ConsumerGroup: "test-group", Topic: "topic", Brokers: []string{"localhost:9092"}}).(*messageSource)
+	if cons.consumergroup != "test-group" {
+		t.Error("unexpected consumer group")
+	}
+	if cons.topic != "topic" {
+		t.Error("unexpected topic")
+	}
+	if cons.brokers[0] != "localhost:9092" {
+		t.Error("unexpected brokers")
+	}
+	if cons.offset != OffsetLatest {
+		t.Error("unexpected offset")
+	}
+	if cons.metadataRefreshFrequency != defaultMetadataRefreshFrequency {
+		t.Error("unexpected metadata refresh frequency")
 	}
 
 }
