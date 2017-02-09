@@ -6,6 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/utilitywarehouse/go-pubsub"
+	"time"
 )
 
 var _ pubsub.MessageSink = (*messageSink)(nil)
@@ -32,6 +33,8 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 	conf.Producer.RequiredAcks = sarama.WaitForAll
 	conf.Producer.Return.Successes = true
 	conf.Producer.Return.Errors = true
+	conf.Producer.Retry.Max = 3
+	conf.Producer.Timeout = time.Duration(60) * time.Second
 
 	if config.KeyFunc != nil {
 		conf.Producer.Partitioner = sarama.NewHashPartitioner
