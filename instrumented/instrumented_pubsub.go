@@ -7,24 +7,24 @@ import (
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 )
 
-// InstrumentedMessageSource is an an Instrumented pubsub MessageSource
-type InstrumentedMessageSource struct {
+// MessageSource is an an Instrumented pubsub MessageSource
+type MessageSource struct {
 	impl    pubsub.MessageSource
 	counter *prometheus.CounterVec
 	topic   string
 }
 
-// NewInstrumentedMessageSource returns a new InstrumentedMessageSource
-func NewInstrumentedMessageSource(
+// NewMessageSource returns a new MessageSource
+func NewMessageSource(
 	source pubsub.MessageSource,
 	counterOpts prometheus.CounterOpts,
 	topic string) pubsub.MessageSource {
 	counter := prometheus.NewCounterVec(counterOpts, []string{"status", topic})
 	prometheus.MustRegister(counter)
-	return &InstrumentedMessageSource{source, counter, topic}
+	return &MessageSource{source, counter, topic}
 }
 
-func newInstrumentedMsgHandler(
+func newMsgHandler(
 	handler func(msg pubsub.ConsumerMessage) error,
 	vec *prometheus.CounterVec, topic string) func(msg pubsub.ConsumerMessage) error {
 
@@ -39,30 +39,30 @@ func newInstrumentedMsgHandler(
 }
 
 // ConsumeMessages is an implementation of interface method, wrapping the call in instrumentation
-func (ims *InstrumentedMessageSource) ConsumeMessages(
+func (ims *MessageSource) ConsumeMessages(
 	ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-	instrumentedHandler := newInstrumentedMsgHandler(handler, ims.counter, ims.topic)
+	instrumentedHandler := newMsgHandler(handler, ims.counter, ims.topic)
 	return ims.impl.ConsumeMessages(ctx, instrumentedHandler, onError)
 }
 
-// InstrumentedMessageSink is an instrumented implementation of the pubsub MessageSink
-type InstrumentedMessageSink struct {
+// MessageSink is an instrumented implementation of the pubsub MessageSink
+type MessageSink struct {
 	impl    pubsub.MessageSink
 	produce func(pubsub.ProducerMessage) error
 }
 
 // PutMessage implements pubsub MessageSink interface method wrapped in instrumentation
-func (ims *InstrumentedMessageSink) PutMessage(m pubsub.ProducerMessage) error {
+func (ims *MessageSink) PutMessage(m pubsub.ProducerMessage) error {
 	return ims.produce(m)
 }
 
 // Close closes the message sink
-func (ims *InstrumentedMessageSink) Close() error {
+func (ims *MessageSink) Close() error {
 	return ims.Close()
 }
 
-// NewInstrumentedMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
-func NewInstrumentedMessageSink(sink pubsub.MessageSink, counterOpts prometheus.CounterOpts, topic string) pubsub.MessageSink {
+// NewMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
+func NewMessageSink(sink pubsub.MessageSink, counterOpts prometheus.CounterOpts, topic string) pubsub.MessageSink {
 	sinkCounter := prometheus.NewCounterVec(counterOpts, []string{"status", "topic"})
 	prometheus.MustRegister(sinkCounter)
 	produceMessage := func(m pubsub.ProducerMessage) error {
@@ -74,7 +74,7 @@ func NewInstrumentedMessageSink(sink pubsub.MessageSink, counterOpts prometheus.
 		}
 		return err
 	}
-	return &InstrumentedMessageSink{
+	return &MessageSink{
 		impl:    sink,
 		produce: produceMessage,
 	}

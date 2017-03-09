@@ -2,7 +2,6 @@ package instrumented_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -18,7 +17,7 @@ func TestInstrumentation(t *testing.T) {
 	var source pubsub.MessageSource = q
 	var sink pubsub.MessageSink = q
 
-	instrumentedSink := instrumented.NewInstrumentedMessageSink(sink, prometheus.CounterOpts{
+	instrumentedSink := instrumented.NewMessageSink(sink, prometheus.CounterOpts{
 		Help: "help_sink",
 		Name: "test_sink",
 	}, "test_topic")
@@ -32,7 +31,7 @@ func TestInstrumentation(t *testing.T) {
 			}
 		}
 	}()
-	instrumentedSource := instrumented.NewInstrumentedMessageSource(source, prometheus.CounterOpts{
+	instrumentedSource := instrumented.NewMessageSource(source, prometheus.CounterOpts{
 		Help: "help_source",
 		Name: "test_source",
 	}, "test_topic")
@@ -58,10 +57,9 @@ func TestInstrumentation(t *testing.T) {
 		close(consumed)
 	}()
 	for {
-		m, ok := <-consumed
+		_, ok := <-consumed
 		if !ok {
 			break
 		}
-		fmt.Println("consumed: %s", string(m.Data))
 	}
 }
