@@ -8,6 +8,7 @@ import (
 )
 
 // MessageSource is an an Instrumented pubsub MessageSource
+// The counter vector will have the labels "status" and "topic"
 type MessageSource struct {
 	impl    pubsub.MessageSource
 	counter *prometheus.CounterVec
@@ -62,6 +63,7 @@ func (ims *MessageSink) Close() error {
 }
 
 // NewMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
+// The counter vector will have the labels status and topic
 func NewMessageSink(sink pubsub.MessageSink, counterOpts prometheus.CounterOpts, topic string) pubsub.MessageSink {
 	sinkCounter := prometheus.NewCounterVec(counterOpts, []string{"status", "topic"})
 	prometheus.MustRegister(sinkCounter)
