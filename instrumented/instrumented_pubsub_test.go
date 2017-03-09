@@ -14,8 +14,8 @@ import (
 func TestInstrumentation(t *testing.T) {
 	q := mockqueue.NewMockQueue()
 
-	var source pubsub.MessageSource = q
-	var sink pubsub.MessageSink = q
+	var source = q
+	var sink = q
 
 	instrumentedSink := instrumented.NewMessageSink(sink, prometheus.CounterOpts{
 		Help: "help_sink",
