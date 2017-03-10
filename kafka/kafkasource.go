@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/bsm/sarama-cluster"
-	"github.com/utilitywarehouse/go-pubsub"
+	"github.com/thinktainer/go-pubsub"
 )
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
