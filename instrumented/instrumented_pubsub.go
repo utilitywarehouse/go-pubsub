@@ -20,7 +20,7 @@ func NewMessageSource(
 	source pubsub.MessageSource,
 	counterOpts prometheus.CounterOpts,
 	topic string) pubsub.MessageSource {
-	counter := prometheus.NewCounterVec(counterOpts, []string{"status", topic})
+	counter := prometheus.NewCounterVec(counterOpts, []string{"status", "topic"})
 	prometheus.MustRegister(counter)
 	return &MessageSource{source, counter, topic}
 }
