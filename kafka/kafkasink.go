@@ -4,9 +4,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/Shopify/sarama"
-	"github.com/utilitywarehouse/go-pubsub"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/thinktainer/go-pubsub"
 )
 
 var _ pubsub.MessageSink = (*messageSink)(nil)

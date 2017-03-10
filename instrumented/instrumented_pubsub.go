@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/prometheus/client_golang/prometheus"
-	pubsub "github.com/utilitywarehouse/go-pubsub"
+	pubsub "github.com/thinktainer/go-pubsub"
 )
 
 // MessageSource is an an Instrumented pubsub MessageSource
