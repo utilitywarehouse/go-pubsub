@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/thinktainer/go-pubsub"
+	"github.com/utilitywarehouse/go-pubsub"
 )
 
 var _ pubsub.MessageSink = (*messageSink)(nil)
