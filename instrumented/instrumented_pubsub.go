@@ -59,7 +59,7 @@ func (ims *MessageSink) PutMessage(m pubsub.ProducerMessage) error {
 
 // Close closes the message sink
 func (ims *MessageSink) Close() error {
-	return ims.Close()
+	return ims.impl.Close()
 }
 
 // NewMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
