@@ -60,7 +60,7 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 		Topic: mq.topic,
 	}
 
-	data, err := m.Marshal()
+	data, err := m.MarshalPubSub()
 	if err != nil {
 		return err
 	}
