@@ -84,3 +84,8 @@ func (mq *messageSink) Close() error {
 	mq.closed = true
 	return mq.producer.Close()
 }
+
+// Status reports the status of the message sink
+func (mq *messageSink) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
+}

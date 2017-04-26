@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"errors"
+
 	"github.com/nats-io/nats"
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -38,4 +40,8 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 func (mq *messageSink) Close() error {
 	mq.conn.Close()
 	return nil
+}
+
+func (mq *messageSink) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }

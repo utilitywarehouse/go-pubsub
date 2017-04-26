@@ -46,6 +46,11 @@ func (ims *MessageSource) ConsumeMessages(
 	return ims.impl.ConsumeMessages(ctx, instrumentedHandler, onError)
 }
 
+// Status returns the status of this source, or an error if the status could not be determined.
+func (ims *MessageSource) Status() (*pubsub.Status, error) {
+	return ims.impl.Status()
+}
+
 // MessageSink is an instrumented implementation of the pubsub MessageSink
 type MessageSink struct {
 	impl    pubsub.MessageSink
@@ -60,6 +65,11 @@ func (ims *MessageSink) PutMessage(m pubsub.ProducerMessage) error {
 // Close closes the message sink
 func (ims *MessageSink) Close() error {
 	return ims.impl.Close()
+}
+
+// Status returns the status of this sink, or an error if the status could not be determined.
+func (ims *MessageSink) Status() (*pubsub.Status, error) {
+	return ims.impl.Status()
 }
 
 // NewMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
