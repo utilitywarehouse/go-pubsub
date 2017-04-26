@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/bsm/sarama-cluster"
@@ -90,6 +89,5 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 // Status reports the status of the message source
 func (mq *messageSource) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
-
+	return status(mq.brokers)
 }

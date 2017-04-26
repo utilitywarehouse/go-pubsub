@@ -20,6 +20,8 @@ type messageSink struct {
 	lk       sync.Mutex
 	producer sarama.SyncProducer
 	closed   bool
+
+	brokers []string
 }
 
 type MessageSinkConfig struct {
@@ -52,6 +54,7 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 		topic:    config.Topic,
 		producer: producer,
 		keyFunc:  config.KeyFunc,
+		brokers:  config.Brokers,
 	}, nil
 }
 
@@ -87,5 +90,5 @@ func (mq *messageSink) Close() error {
 
 // Status reports the status of the message sink
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
+	return status(mq.brokers)
 }
