@@ -13,10 +13,15 @@ func status(brokers []string) (*pubsub.Status, error) {
 	for _, broker := range brokers {
 		go func(broker string) {
 			conn, err := net.DialTimeout("tcp", broker, 10*time.Second)
-			if err == nil {
-				err = conn.Close()
+			if err != nil {
+				errs <- fmt.Errorf("Failed to connect to broker %s: %v", err)
+				return
 			}
-			errs <- err
+			if err = conn.Close(); err != nil {
+				errs <- fmt.Errorf("Failed to close connection to broker %s: %v", err)
+				return
+			}
+			errs <- nil
 		}(broker)
 	}
 
