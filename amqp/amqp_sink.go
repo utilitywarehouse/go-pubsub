@@ -103,3 +103,7 @@ func (mq *messageSink) Close() error {
 	}
 	return err2
 }
+func (mq *messageSink) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
+
+}

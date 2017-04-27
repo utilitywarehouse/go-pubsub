@@ -2,6 +2,7 @@ package natss
 
 import (
 	"context"
+	"errors"
 
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
@@ -56,4 +57,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	conn.Close()
 
 	return nil
+}
+
+func (mq *messageSource) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }

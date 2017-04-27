@@ -2,6 +2,7 @@ package mockqueue
 
 import (
 	"context"
+	"errors"
 
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -50,4 +51,9 @@ func (mq *MockQueue) ConsumeMessages(ctx context.Context, handler pubsub.Consume
 func (mq *MockQueue) Close() error {
 	// no-op in mock.
 	return nil
+}
+
+// Status reports the status of the queue
+func (mq *MockQueue) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }
