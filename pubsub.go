@@ -54,3 +54,6 @@ type ConsumerMessageHandler func(ConsumerMessage) error
 // ConsumerErrorHandler is invoked when a message can not be processed.  If an
 // error handler returns an error itself, processing of messages is aborted
 type ConsumerErrorHandler func(ConsumerMessage, error) error
+
+type DummyThingForTestingHoundCI struct {
+}
