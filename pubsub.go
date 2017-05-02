@@ -34,6 +34,7 @@ type MessageSource interface {
 	Statuser
 }
 
+// Statuser is the interface that wraps the Status method.
 type Statuser interface {
 	Status() (*Status, error)
 }
