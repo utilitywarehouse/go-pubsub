@@ -25,12 +25,16 @@ type ConsumerMessage struct {
 type MessageSink interface {
 	io.Closer
 	PutMessage(ProducerMessage) error
-	Status() (*Status, error)
+	Statuser
 }
 
 type MessageSource interface {
 	// Consume messages will block until error or until the context is done.
 	ConsumeMessages(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
+	Statuser
+}
+
+type Statuser interface {
 	Status() (*Status, error)
 }
 
