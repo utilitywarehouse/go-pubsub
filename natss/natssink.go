@@ -37,8 +37,7 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 }
 
 func (mq *messageSink) Close() error {
-	mq.conn.Close()
-	return nil
+	return mq.conn.Close()
 }
 
 func (mq *messageSink) Status() (*pubsub.Status, error) {
