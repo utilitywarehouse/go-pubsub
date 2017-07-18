@@ -25,11 +25,26 @@ type ConsumerMessage struct {
 type MessageSink interface {
 	io.Closer
 	PutMessage(ProducerMessage) error
+	Statuser
 }
 
 type MessageSource interface {
 	// Consume messages will block until error or until the context is done.
 	ConsumeMessages(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
+	Statuser
+}
+
+// Statuser is the interface that wraps the Status method.
+type Statuser interface {
+	Status() (*Status, error)
+}
+
+// Status represents a snapshot of the state of a source or sink.
+type Status struct {
+	// Working indicates whether the source or sink is in a working state
+	Working bool
+	// Problems indicates and problems with the source or sink, whether or not they prevent it working.
+	Problems []string
 }
 
 // ConsumerMessageHandler processes messages, and should return an error if it

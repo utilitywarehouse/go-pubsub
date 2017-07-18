@@ -86,3 +86,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		}
 	}
 }
+
+// Status reports the status of the message source
+func (mq *messageSource) Status() (*pubsub.Status, error) {
+	return status(mq.brokers)
+}

@@ -1,6 +1,8 @@
 package natss
 
 import (
+	"errors"
+
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -27,7 +29,6 @@ func NewMessageSink(clusterID, topic, consumerID, natsURL string) (pubsub.Messag
 }
 
 func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
-	println("publishing message to nats")
 	data, err := m.MarshalPubSub()
 	if err != nil {
 		return err
@@ -36,6 +37,9 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 }
 
 func (mq *messageSink) Close() error {
-	mq.conn.Close()
-	return nil
+	return mq.conn.Close()
+}
+
+func (mq *messageSink) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }

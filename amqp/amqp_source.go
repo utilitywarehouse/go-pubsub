@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"context"
+	"errors"
 
 	"github.com/streadway/amqp"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -85,4 +86,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 			return ch.Close()
 		}
 	}
+}
+
+func (mq *messageSource) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }

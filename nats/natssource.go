@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 
 	"github.com/nats-io/nats"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -62,4 +63,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 			}
 		})
 	*/
+}
+
+func (mq *messageSource) Status() (*pubsub.Status, error) {
+	return nil, errors.New("status is not implemented")
 }
