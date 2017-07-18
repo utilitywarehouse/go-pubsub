@@ -65,7 +65,7 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 
 func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 
-	data, err := m.Marshal()
+	data, err := m.MarshalPubSub()
 	if err != nil {
 		return err
 	}

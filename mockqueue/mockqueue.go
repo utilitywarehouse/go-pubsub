@@ -23,7 +23,7 @@ func NewMockQueue() *MockQueue {
 }
 
 func (mq *MockQueue) PutMessage(m pubsub.ProducerMessage) error {
-	data, err := m.Marshal()
+	data, err := m.MarshalPubSub()
 	if err != nil {
 		return err
 	}
