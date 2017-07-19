@@ -29,7 +29,7 @@ func NewMessageSink(clusterID, topic, consumerID, natsURL string) (pubsub.Messag
 }
 
 func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
-	data, err := m.MarshalPubSub()
+	data, err := m.Marshal()
 	if err != nil {
 		return err
 	}

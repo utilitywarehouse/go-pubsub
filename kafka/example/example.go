@@ -46,7 +46,7 @@ type MyMessage struct {
 	Message    string
 }
 
-func (m MyMessage) MarshalPubSub() ([]byte, error) {
+func (m MyMessage) Marshal() ([]byte, error) {
 	return json.Marshal(m)
 }
 

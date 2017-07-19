@@ -8,13 +8,13 @@ import (
 // ProducerMessage is an individual message that can be sent
 type ProducerMessage interface {
 	// Marshal returns the message in wire format
-	MarshalPubSub() ([]byte, error)
+	Marshal() ([]byte, error)
 }
 
 // SimpleProducerMessage is a convenience type for simply sending byte slices.
 type SimpleProducerMessage []byte
 
-func (sm SimpleProducerMessage) MarshalPubSub() ([]byte, error) {
+func (sm SimpleProducerMessage) Marshal() ([]byte, error) {
 	return []byte(sm), nil
 }
 
