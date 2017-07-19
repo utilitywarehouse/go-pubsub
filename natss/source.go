@@ -2,12 +2,23 @@ package natss
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
 	"github.com/utilitywarehouse/go-pubsub"
 )
+
+func generateID() string {
+	random := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	_, err := rand.Read(random)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(random)
+}
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
@@ -29,7 +40,7 @@ func NewMessageSource(natsURL, clusterID, consumerID, topic string) (pubsub.Mess
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
-	conn, err := stan.Connect(mq.clusterID, mq.consumerID, stan.NatsURL(mq.natsURL))
+	conn, err := stan.Connect(mq.clusterID, mq.consumerID+generateID(), stan.NatsURL(mq.natsURL))
 	if err != nil {
 		return err
 	}
