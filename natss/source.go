@@ -62,6 +62,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 			if err := onError(m, err); err != nil {
 				broken = true
 				consumeErrs <- err
+			} else {
+				msg.Ack()
 			}
 		} else {
 			msg.Ack()
@@ -70,7 +72,9 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	startOpt := stan.StartAt(pb.StartPosition_First)
 
-	_, err = conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
+	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
+
+	defer subcription.Close()
 
 	if err != nil {
 		return err
@@ -80,7 +84,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case <-ctx.Done():
 	case err = <-consumeErrs:
 	}
-	conn.Close()
+
+	//conn.Close()
 
 	return err
 }
