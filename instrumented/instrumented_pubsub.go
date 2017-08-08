@@ -21,7 +21,13 @@ func NewMessageSource(
 	counterOpts prometheus.CounterOpts,
 	topic string) pubsub.MessageSource {
 	counter := prometheus.NewCounterVec(counterOpts, []string{"status", "topic"})
-	prometheus.MustRegister(counter)
+	if err := prometheus.Register(counter); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			counter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			panic(err)
+		}
+	}
 	return &MessageSource{source, counter, topic}
 }
 
@@ -76,7 +82,13 @@ func (ims *MessageSink) Status() (*pubsub.Status, error) {
 // The counter vector will have the labels status and topic
 func NewMessageSink(sink pubsub.MessageSink, counterOpts prometheus.CounterOpts, topic string) pubsub.MessageSink {
 	sinkCounter := prometheus.NewCounterVec(counterOpts, []string{"status", "topic"})
-	prometheus.MustRegister(sinkCounter)
+	if err := prometheus.Register(sinkCounter); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			sinkCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			panic(err)
+		}
+	}
 	produceMessage := func(m pubsub.ProducerMessage) error {
 		err := sink.PutMessage(m)
 		if err != nil {

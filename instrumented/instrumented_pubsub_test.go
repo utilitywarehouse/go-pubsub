@@ -63,3 +63,27 @@ func TestInstrumentation(t *testing.T) {
 		}
 	}
 }
+
+func TestInstrumentationSameCollector(t *testing.T) {
+	q := mockqueue.NewMockQueue()
+	var sink = q
+	var source = q
+
+	instrumented.NewMessageSink(sink, prometheus.CounterOpts{
+		Help: "help_sink",
+		Name: "test_sink",
+	}, "test_topic")
+	instrumented.NewMessageSink(sink, prometheus.CounterOpts{
+		Help: "help_sink",
+		Name: "test_sink",
+	}, "test_topic1")
+
+	instrumented.NewMessageSource(source, prometheus.CounterOpts{
+		Help: "help_source",
+		Name: "test_source",
+	}, "test_topic")
+	instrumented.NewMessageSource(source, prometheus.CounterOpts{
+		Help: "help_source",
+		Name: "test_source",
+	}, "test_topic1")
+}
