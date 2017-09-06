@@ -46,7 +46,7 @@ func TestKafka(t *testing.T) {
 		},
 		{
 			name:  "everything",
-			input: "kafka://localhost:123/t1/?offset=latest;consumer-group=g1;metadata-refresh=2s;broker=localhost:234;broker=localhost:345",
+			input: "kafka://localhost:123/t1/?offset=latest&consumer-group=g1&metadata-refresh=2s&broker=localhost:234&broker=localhost:345",
 			expected: kafka.MessageSourceConfig{
 				Brokers:                  []string{"localhost:123", "localhost:234", "localhost:345"},
 				ConsumerGroup:            "g1",
@@ -118,7 +118,7 @@ func TestNatsStreaming(t *testing.T) {
 		},
 		{
 			name:  "everything",
-			input: "nats-streaming://localhost:123/t1?cluster-id=cid-1;consumer-id=cons-1",
+			input: "nats-streaming://localhost:123/t1?cluster-id=cid-1&consumer-id=cons-1",
 			expected: natsConf{
 				natsURL:    "nats://localhost:123",
 				clusterID:  "cid-1",
