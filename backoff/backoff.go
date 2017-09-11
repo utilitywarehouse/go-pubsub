@@ -1,9 +1,9 @@
 package backoff
 
 import (
-	"time"
-	"math"
 	"github.com/utilitywarehouse/go-pubsub"
+	"math"
+	"time"
 )
 
 // ExponentialBackOffRetryingErrorHandler a retying ConsumerErrorHandler with ExponentialBackOff
