@@ -7,8 +7,10 @@ import (
 	"fmt"
 )
 
+// DeadLetteringErrorHandler a dead lettering ConsumerErrorHandler
 type DeadLetteringErrorHandler pubsub.ConsumerErrorHandler
 
+// FailedConsumerMessage a struct for storing failed consumer messages
 type FailedConsumerMessage struct {
 	Message       pubsub.ConsumerMessage `json:"message"`
 	MessageBase64 string                 `json:"messageBase64"`
@@ -16,8 +18,9 @@ type FailedConsumerMessage struct {
 	Err           error                  `json:"error"`
 }
 
+// New returns a new DeadLetteringErrorHandler
 func New(sink pubsub.MessageSink, messageTopic string) DeadLetteringErrorHandler {
-	return NewWithFallback(
+	return NewWithFallBack(
 		sink,
 		func(msg pubsub.ConsumerMessage, err error) error {
 			return err
@@ -26,7 +29,8 @@ func New(sink pubsub.MessageSink, messageTopic string) DeadLetteringErrorHandler
 	)
 }
 
-func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) DeadLetteringErrorHandler {
+// NewWithFallBack returns a new DeadLetteringErrorHandler with fall back
+func NewWithFallBack(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) DeadLetteringErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		failedMsg := FailedConsumerMessage{
 			Message:       msg,

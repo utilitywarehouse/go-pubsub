@@ -6,8 +6,10 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
+// ExponentialBackOffRetryingErrorHandler a retying ConsumerErrorHandler with ExponentialBackOff
 type ExponentialBackOffRetryingErrorHandler pubsub.ConsumerErrorHandler
 
+// New returns a new ExponentialBackOffRetryingErrorHandler
 func New(handler pubsub.ConsumerMessageHandler, retries int) ExponentialBackOffRetryingErrorHandler {
 	return NewWithFallBack(
 		handler,
@@ -18,6 +20,7 @@ func New(handler pubsub.ConsumerMessageHandler, retries int) ExponentialBackOffR
 	)
 }
 
+// NewWithFallBack returns a new ExponentialBackOffRetryingErrorHandler with fall back
 func NewWithFallBack(handler pubsub.ConsumerMessageHandler, errHandler pubsub.ConsumerErrorHandler, retries int) ExponentialBackOffRetryingErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		for i := 0; i < retries; i++ {
