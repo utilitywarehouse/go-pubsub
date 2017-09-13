@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/utilitywarehouse/go-pubsub"
+	"time"
 )
 
 // DeadLetteringErrorHandler a dead lettering ConsumerErrorHandler
-type DeadLetteringErrorHandler pubsub.ConsumerErrorHandler
+type JSONDeadLetteringErrorHandler pubsub.ConsumerErrorHandler
 
 // FailedConsumerMessage a struct for storing failed consumer messages
 type FailedConsumerMessage struct {
-	Message      []byte `json:"message"`
-	MessageTopic string `json:"messageTopic"`
-	Err          string `json:"error"`
+	Message      []byte    `json:"message"`
+	MessageTopic string    `json:"messageTopic"`
+	Err          string    `json:"error"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
-// New returns a new DeadLetteringErrorHandler
-func New(sink pubsub.MessageSink, messageTopic string) DeadLetteringErrorHandler {
+// New returns a new JSONDeadLetteringErrorHandler
+func New(sink pubsub.MessageSink, messageTopic string) JSONDeadLetteringErrorHandler {
 	return NewWithFallback(
 		sink,
 		func(msg pubsub.ConsumerMessage, err error) error {
@@ -27,13 +29,14 @@ func New(sink pubsub.MessageSink, messageTopic string) DeadLetteringErrorHandler
 	)
 }
 
-// NewWithFallback returns a new DeadLetteringErrorHandler with fallback
-func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) DeadLetteringErrorHandler {
+// NewWithFallback returns a new JSONDeadLetteringErrorHandler with fallback
+func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) JSONDeadLetteringErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		failedMsg := FailedConsumerMessage{
 			Message:      msg.Data,
 			MessageTopic: messageTopic,
 			Err:          err.Error(),
+			Timestamp:    time.Now(),
 		}
 		failedMsgJSON, err := json.Marshal(failedMsg)
 		if err != nil {
