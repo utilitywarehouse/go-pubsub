@@ -9,21 +9,28 @@ import (
 
 var _ pubsub.MessageSink = (*messageSink)(nil)
 
+type MessageSinkConfig struct {
+	NatsURL   string
+	ClusterID string
+	Topic     string
+	ClientID  string
+}
+
 type messageSink struct {
 	topic string
 
 	conn stan.Conn
 }
 
-func NewMessageSink(clusterID, topic, clientID, natsURL string) (pubsub.MessageSink, error) {
+func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 
-	conn, err := stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
+	conn, err := stan.Connect(config.ClusterID, config.ClientID, stan.NatsURL(config.NatsURL))
 	if err != nil {
 		return nil, err
 	}
 
 	return &messageSink{
-		topic: topic,
+		topic: config.Topic,
 		conn:  conn,
 	}, nil
 }

@@ -22,6 +22,13 @@ func generateID() string {
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
+type MessageSourceConfig struct {
+	NatsURL    string
+	ClusterID  string
+	Topic      string
+	ConsumerID string
+}
+
 type messageSource struct {
 	natsURL    string
 	clusterID  string
@@ -29,12 +36,12 @@ type messageSource struct {
 	topic      string
 }
 
-func NewMessageSource(natsURL, clusterID, consumerID, topic string) (pubsub.MessageSource, error) {
+func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 	return &messageSource{
-		natsURL:    natsURL,
-		clusterID:  clusterID,
-		consumerID: consumerID,
-		topic:      topic,
+		natsURL:    conf.NatsURL,
+		clusterID:  conf.ClusterID,
+		consumerID: conf.ConsumerID,
+		topic:      conf.Topic,
 	}, nil
 }
 
