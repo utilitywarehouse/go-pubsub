@@ -37,7 +37,7 @@ func main() {
 }
 
 func produce() {
-	sink, err := nats.NewMessageSink("cluster-id", "demo-topic", "consumer-01", "nats://localhost:4222")
+	sink, err := nats.NewMessageSink("cluster-id", "demo-topic", "client-01", "nats://localhost:4222")
 	if err != nil {
 		panic(err)
 		log.Fatal(err)

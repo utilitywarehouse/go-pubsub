@@ -15,9 +15,9 @@ type messageSink struct {
 	conn stan.Conn
 }
 
-func NewMessageSink(clusterID, topic, consumerID, natsURL string) (pubsub.MessageSink, error) {
+func NewMessageSink(clusterID, topic, clientID, natsURL string) (pubsub.MessageSink, error) {
 
-	conn, err := stan.Connect(clusterID, consumerID, stan.NatsURL(natsURL))
+	conn, err := stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
 	if err != nil {
 		return nil, err
 	}
