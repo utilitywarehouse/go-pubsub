@@ -32,7 +32,7 @@ func newKafkaSink(uri *url.URL) (pubsub.MessageSink, error) {
 
 var kafkaSinker = kafka.NewMessageSink
 
-func newKafka(uri *url.URL) (pubsub.MessageSource, error) {
+func newKafkaSource(uri *url.URL) (pubsub.MessageSource, error) {
 	q := uri.Query()
 
 	topic := strings.Trim(uri.Path, "/")

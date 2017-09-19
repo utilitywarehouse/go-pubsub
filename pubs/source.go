@@ -18,9 +18,9 @@ func NewSource(uri string) (pubsub.MessageSource, error) {
 	}
 	switch parsed.Scheme {
 	case "kafka":
-		return newKafka(parsed)
+		return newKafkaSource(parsed)
 	case "nats-streaming":
-		return newNatsStreaming(parsed)
+		return newNatsStreamingSource(parsed)
 	default:
 		return nil, fmt.Errorf("unknown scheme : %s", parsed.Scheme)
 	}

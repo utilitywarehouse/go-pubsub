@@ -29,7 +29,7 @@ func newNatsStreamingSink(uri *url.URL) (pubsub.MessageSink, error) {
 
 var natsStreamingSinker = natss.NewMessageSink
 
-func newNatsStreaming(uri *url.URL) (pubsub.MessageSource, error) {
+func newNatsStreamingSource(uri *url.URL) (pubsub.MessageSource, error) {
 	q := uri.Query()
 
 	natsURL := "nats://" + uri.Host

@@ -75,7 +75,7 @@ func TestKafkaSink(t *testing.T) {
 
 }
 
-func TestKafka(t *testing.T) {
+func TestKafkaSource(t *testing.T) {
 	assert := assert.New(t)
 
 	tests := []struct {
