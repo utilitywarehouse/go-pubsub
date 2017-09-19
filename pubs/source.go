@@ -82,7 +82,12 @@ func newNatsStreaming(uri *url.URL) (pubsub.MessageSource, error) {
 		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
 	}
 
-	return natsStreamingSourcer(natsURL, q.Get("cluster-id"), q.Get("consumer-id"), topic)
+	return natsStreamingSourcer(natss.MessageSourceConfig{
+		NatsURL:    natsURL,
+		ClusterID:  q.Get("cluster-id"),
+		ConsumerID: q.Get("consumer-id"),
+		Topic:      topic,
+	})
 
 }
 

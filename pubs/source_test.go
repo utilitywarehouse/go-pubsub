@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 	"github.com/utilitywarehouse/go-pubsub/kafka"
+	"github.com/utilitywarehouse/go-pubsub/natss"
 )
 
 func TestKafka(t *testing.T) {
@@ -81,69 +82,63 @@ func TestKafka(t *testing.T) {
 func TestNatsStreaming(t *testing.T) {
 	assert := assert.New(t)
 
-	type natsConf struct{ natsURL, clusterID, consumerID, topic string }
-
 	tests := []struct {
 		name        string
 		input       string
-		expected    natsConf
+		expected    natss.MessageSourceConfig
 		expectedErr bool
 	}{
 		{
 			name:  "simple",
 			input: "nats-streaming://localhost/t1",
-			expected: natsConf{
-				natsURL: "nats://localhost",
-				topic:   "t1",
+			expected: natss.MessageSourceConfig{
+				NatsURL: "nats://localhost",
+				Topic:   "t1",
 			},
 			expectedErr: false,
 		},
 		{
 			name:  "simple-trailing-slash",
 			input: "nats-streaming://localhost/t1/",
-			expected: natsConf{
-				natsURL: "nats://localhost",
-				topic:   "t1",
+			expected: natss.MessageSourceConfig{
+				NatsURL: "nats://localhost",
+				Topic:   "t1",
 			},
 			expectedErr: false,
 		},
 		{
 			name:  "with-port",
 			input: "nats-streaming://localhost:123/t1",
-			expected: natsConf{
-				natsURL: "nats://localhost:123",
-				topic:   "t1",
+			expected: natss.MessageSourceConfig{
+				NatsURL: "nats://localhost:123",
+				Topic:   "t1",
 			},
 			expectedErr: false,
 		},
 		{
 			name:  "everything",
 			input: "nats-streaming://localhost:123/t1?cluster-id=cid-1&consumer-id=cons-1",
-			expected: natsConf{
-				natsURL:    "nats://localhost:123",
-				clusterID:  "cid-1",
-				consumerID: "cons-1",
-				topic:      "t1",
+			expected: natss.MessageSourceConfig{
+				NatsURL:    "nats://localhost:123",
+				ClusterID:  "cid-1",
+				ConsumerID: "cons-1",
+				Topic:      "t1",
 			},
 			expectedErr: false,
 		},
 		{
 			name:        "extra-path-elements",
 			input:       "nats-streaming://localhost:123/aa/bb",
-			expected:    natsConf{},
+			expected:    natss.MessageSourceConfig{},
 			expectedErr: true,
 		},
 	}
 
 	for _, tst := range tests {
 		t.Run(tst.name, func(t *testing.T) {
-
-			var conf natsConf
-			natsStreamingSourcer = func(natsURL, clusterID, consumerID, topic string) (pubsub.MessageSource, error) {
-				conf.natsURL = natsURL
-				conf.clusterID = clusterID
-				conf.consumerID = consumerID
-				conf.topic = topic
+			var c natss.MessageSourceConfig
+			natsStreamingSourcer = func(conf natss.MessageSourceConfig) (pubsub.MessageSource, error) {
+				c = conf
 				return nil, nil
 			}
 			_, err := NewSource(tst.input)
@@ -152,7 +147,7 @@ func TestNatsStreaming(t *testing.T) {
 				t.Errorf("expected error %v but got %v", tst.expectedErr, err)
 			}
 
-			assert.Equal(tst.expected, conf)
+			assert.Equal(tst.expected, c)
 		})
 	}
 

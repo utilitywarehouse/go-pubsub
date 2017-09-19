@@ -60,8 +60,12 @@ func newNatsStreamingSink(uri *url.URL) (pubsub.MessageSink, error) {
 		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
 	}
 
-	return natsStreamingSinker(natsURL, q.Get("cluster-id"), q.Get("client-id"), topic)
-
+	return natsStreamingSinker(natss.MessageSinkConfig{
+		NatsURL:   natsURL,
+		ClusterID: q.Get("cluster-id"),
+		ClientID:  q.Get("client-id"),
+		Topic:     topic,
+	})
 }
 
 var natsStreamingSinker = natss.NewMessageSink
