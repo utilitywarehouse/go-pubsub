@@ -14,7 +14,12 @@ func main() {
 
 	produce()
 
-	cons, err := nats.NewMessageSource("nats://localhost:4222", "cluster-id", "consumer-02", "demo-topic")
+	cons, err := nats.NewMessageSource(nats.MessageSourceConfig{
+		NatsURL:    "nats://localhost:4222",
+		ClusterID:  "cluster-id",
+		ConsumerID: "consumer-02",
+		Topic:      "demo-topic",
+	})
 	if err != nil {
 		panic(err)
 		log.Fatal(err)
@@ -37,7 +42,12 @@ func main() {
 }
 
 func produce() {
-	sink, err := nats.NewMessageSink("cluster-id", "demo-topic", "consumer-01", "nats://localhost:4222")
+	sink, err := nats.NewMessageSink(nats.MessageSinkConfig{
+		ClusterID: "cluster-id",
+		Topic:     "demo-topic",
+		ClientID:  "client-01",
+		NatsURL:   "nats://localhost:4222",
+	})
 	if err != nil {
 		panic(err)
 		log.Fatal(err)
