@@ -3,11 +3,8 @@ package pubs
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	pubsub "github.com/utilitywarehouse/go-pubsub"
-	"github.com/utilitywarehouse/go-pubsub/kafka"
-	"github.com/utilitywarehouse/go-pubsub/natss"
 )
 
 // NewSink will return a message sink based on the supplied URL.
@@ -28,44 +25,3 @@ func NewSink(uri string) (pubsub.MessageSink, error) {
 		return nil, fmt.Errorf("unknown scheme : %s", parsed.Scheme)
 	}
 }
-
-func newKafkaSink(uri *url.URL) (pubsub.MessageSink, error) {
-	q := uri.Query()
-
-	topic := strings.Trim(uri.Path, "/")
-
-	if strings.Contains(topic, "/") {
-		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
-	}
-
-	conf := kafka.MessageSinkConfig{
-		Brokers: []string{uri.Host},
-		Topic:   topic,
-	}
-
-	conf.Brokers = append(conf.Brokers, q["broker"]...)
-
-	return kafkaSinker(conf)
-}
-
-var kafkaSinker = kafka.NewMessageSink
-
-func newNatsStreamingSink(uri *url.URL) (pubsub.MessageSink, error) {
-	q := uri.Query()
-
-	natsURL := "nats://" + uri.Host
-
-	topic := strings.Trim(uri.Path, "/")
-	if strings.Contains(topic, "/") {
-		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
-	}
-
-	return natsStreamingSinker(natss.MessageSinkConfig{
-		NatsURL:   natsURL,
-		ClusterID: q.Get("cluster-id"),
-		ClientID:  q.Get("client-id"),
-		Topic:     topic,
-	})
-}
-
-var natsStreamingSinker = natss.NewMessageSink

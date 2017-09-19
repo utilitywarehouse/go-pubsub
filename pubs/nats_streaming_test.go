@@ -1,84 +1,85 @@
 package pubs
 
 import (
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	pubsub "github.com/utilitywarehouse/go-pubsub"
-	"github.com/utilitywarehouse/go-pubsub/kafka"
 	"github.com/utilitywarehouse/go-pubsub/natss"
+	"testing"
 )
 
-func TestKafka(t *testing.T) {
+func TestNatsStreamingSink(t *testing.T) {
 	assert := assert.New(t)
 
 	tests := []struct {
 		name        string
 		input       string
-		expected    kafka.MessageSourceConfig
-		expectedErr error
+		expected    natss.MessageSinkConfig
+		expectedErr bool
 	}{
 		{
 			name:  "simple",
-			input: "kafka://localhost",
-			expected: kafka.MessageSourceConfig{
-				Brokers: []string{"localhost"},
-			},
-			expectedErr: nil,
-		},
-		{
-			name:  "standard",
-			input: "kafka://localhost:123/t1",
-			expected: kafka.MessageSourceConfig{
-				Brokers: []string{"localhost:123"},
+			input: "nats-streaming://localhost/t1",
+			expected: natss.MessageSinkConfig{
+				NatsURL: "nats://localhost",
 				Topic:   "t1",
 			},
-			expectedErr: nil,
+			expectedErr: false,
+		},
+		{
+			name:  "simple-trailing-slash",
+			input: "nats-streaming://localhost/t1/",
+			expected: natss.MessageSinkConfig{
+				NatsURL: "nats://localhost",
+				Topic:   "t1",
+			},
+			expectedErr: false,
 		},
 		{
 			name:  "with-port",
-			input: "kafka://localhost:123/t1",
-			expected: kafka.MessageSourceConfig{
-				Brokers: []string{"localhost:123"},
+			input: "nats-streaming://localhost:123/t1",
+			expected: natss.MessageSinkConfig{
+				NatsURL: "nats://localhost:123",
 				Topic:   "t1",
 			},
-			expectedErr: nil,
+			expectedErr: false,
 		},
 		{
 			name:  "everything",
-			input: "kafka://localhost:123/t1/?offset=latest&consumer-group=g1&metadata-refresh=2s&broker=localhost:234&broker=localhost:345",
-			expected: kafka.MessageSourceConfig{
-				Brokers:                  []string{"localhost:123", "localhost:234", "localhost:345"},
-				ConsumerGroup:            "g1",
-				MetadataRefreshFrequency: 2 * time.Second,
-				Offset: kafka.OffsetLatest,
-				Topic:  "t1",
+			input: "nats-streaming://localhost:123/t1?cluster-id=cid-1&client-id=client-1",
+			expected: natss.MessageSinkConfig{
+				NatsURL:   "nats://localhost:123",
+				ClusterID: "cid-1",
+				ClientID:  "client-1",
+				Topic:     "t1",
 			},
-			expectedErr: nil,
+			expectedErr: false,
+		},
+		{
+			name:        "extra-path-elements",
+			input:       "nats-streaming://localhost:123/aa/bb",
+			expected:    natss.MessageSinkConfig{},
+			expectedErr: true,
 		},
 	}
 
 	for _, tst := range tests {
 		t.Run(tst.name, func(t *testing.T) {
-
-			var conf kafka.MessageSourceConfig
-			kafkaSourcer = func(c kafka.MessageSourceConfig) pubsub.MessageSource {
-				conf = c
-				return nil
+			var c natss.MessageSinkConfig
+			natsStreamingSinker = func(conf natss.MessageSinkConfig) (pubsub.MessageSink, error) {
+				c = conf
+				return nil, nil
 			}
-			_, err := NewSource(tst.input)
+			_, err := NewSink(tst.input)
 
-			if tst.expectedErr != err {
+			if tst.expectedErr == (err == nil) {
 				t.Errorf("expected error %v but got %v", tst.expectedErr, err)
 			}
 
-			assert.Equal(tst.expected, conf)
+			assert.Equal(tst.expected, c)
 		})
 	}
 
 }
-
 func TestNatsStreaming(t *testing.T) {
 	assert := assert.New(t)
 

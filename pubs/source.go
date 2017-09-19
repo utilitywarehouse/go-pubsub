@@ -2,14 +2,9 @@ package pubs
 
 import (
 	"fmt"
-	"log"
 	"net/url"
-	"strings"
-	"time"
 
 	pubsub "github.com/utilitywarehouse/go-pubsub"
-	"github.com/utilitywarehouse/go-pubsub/kafka"
-	"github.com/utilitywarehouse/go-pubsub/natss"
 )
 
 // NewSource will return a message source based on the supplied URL.
@@ -30,65 +25,3 @@ func NewSource(uri string) (pubsub.MessageSource, error) {
 		return nil, fmt.Errorf("unknown scheme : %s", parsed.Scheme)
 	}
 }
-
-func newKafka(uri *url.URL) (pubsub.MessageSource, error) {
-	q := uri.Query()
-
-	topic := strings.Trim(uri.Path, "/")
-
-	if strings.Contains(topic, "/") {
-		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
-	}
-
-	conf := kafka.MessageSourceConfig{
-		Brokers:       []string{uri.Host},
-		ConsumerGroup: q.Get("consumer-group"),
-		Topic:         topic,
-	}
-
-	conf.Brokers = append(conf.Brokers, q["broker"]...)
-
-	switch q.Get("offset") {
-	case "latest":
-		conf.Offset = kafka.OffsetLatest
-	case "oldest":
-		conf.Offset = kafka.OffsetLatest
-	case "":
-	default:
-		log.Printf("ignoring unknown offset value '%s'\n", q.Get("offset"))
-	}
-
-	dur := q.Get("metadata-refresh")
-	if dur != "" {
-		d, err := time.ParseDuration(dur)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse refresh duration : %v", err)
-		}
-		conf.MetadataRefreshFrequency = d
-	}
-
-	return kafkaSourcer(conf), nil
-}
-
-var kafkaSourcer = kafka.NewMessageSource
-
-func newNatsStreaming(uri *url.URL) (pubsub.MessageSource, error) {
-	q := uri.Query()
-
-	natsURL := "nats://" + uri.Host
-
-	topic := strings.Trim(uri.Path, "/")
-	if strings.Contains(topic, "/") {
-		return nil, fmt.Errorf("error parsing topic from url (%s)", topic)
-	}
-
-	return natsStreamingSourcer(natss.MessageSourceConfig{
-		NatsURL:    natsURL,
-		ClusterID:  q.Get("cluster-id"),
-		ConsumerID: q.Get("consumer-id"),
-		Topic:      topic,
-	})
-
-}
-
-var natsStreamingSourcer = natss.NewMessageSource
