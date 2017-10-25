@@ -1,16 +1,14 @@
 package backoff
 
 import (
-	"github.com/utilitywarehouse/go-pubsub"
 	"math"
 	"time"
+
+	"github.com/utilitywarehouse/go-pubsub"
 )
 
-// ExponentialBackOffRetryingErrorHandler a retying ConsumerErrorHandler with ExponentialBackOff
-type ExponentialBackOffRetryingErrorHandler pubsub.ConsumerErrorHandler
-
 // New returns a new ExponentialBackOffRetryingErrorHandler
-func New(handler pubsub.ConsumerMessageHandler, retries int) ExponentialBackOffRetryingErrorHandler {
+func New(handler pubsub.ConsumerMessageHandler, retries int) pubsub.ConsumerErrorHandler {
 	return NewWithFallback(
 		handler,
 		func(msg pubsub.ConsumerMessage, err error) error {
@@ -21,7 +19,7 @@ func New(handler pubsub.ConsumerMessageHandler, retries int) ExponentialBackOffR
 }
 
 // NewWithFallback returns a new ExponentialBackOffRetryingErrorHandler with fallback
-func NewWithFallback(handler pubsub.ConsumerMessageHandler, errHandler pubsub.ConsumerErrorHandler, retries int) ExponentialBackOffRetryingErrorHandler {
+func NewWithFallback(handler pubsub.ConsumerMessageHandler, errHandler pubsub.ConsumerErrorHandler, retries int) pubsub.ConsumerErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		for i := 0; i < retries; i++ {
 			err := handler(msg)

@@ -3,12 +3,10 @@ package deadletter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/utilitywarehouse/go-pubsub"
 	"time"
-)
 
-// DeadLetteringErrorHandler a dead lettering ConsumerErrorHandler
-type JSONDeadLetteringErrorHandler pubsub.ConsumerErrorHandler
+	"github.com/utilitywarehouse/go-pubsub"
+)
 
 // FailedConsumerMessage a struct for storing failed consumer messages
 type FailedConsumerMessage struct {
@@ -19,7 +17,8 @@ type FailedConsumerMessage struct {
 }
 
 // New returns a new JSONDeadLetteringErrorHandler
-func New(sink pubsub.MessageSink, messageTopic string) JSONDeadLetteringErrorHandler {
+func New(sink pubsub.MessageSink, messageTopic string) pubsub.ConsumerErrorHandler {
+
 	return NewWithFallback(
 		sink,
 		func(msg pubsub.ConsumerMessage, err error) error {
@@ -30,7 +29,7 @@ func New(sink pubsub.MessageSink, messageTopic string) JSONDeadLetteringErrorHan
 }
 
 // NewWithFallback returns a new JSONDeadLetteringErrorHandler with fallback
-func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) JSONDeadLetteringErrorHandler {
+func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) pubsub.ConsumerErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		failedMsg := FailedConsumerMessage{
 			Message:      msg.Data,
