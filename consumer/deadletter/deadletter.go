@@ -16,9 +16,8 @@ type FailedConsumerMessage struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
-// New returns a new JSONDeadLetteringErrorHandler
+// New returns a new ConsumerErrorHandler which produces JSON serialized FailedConsumerMessage to sink
 func New(sink pubsub.MessageSink, messageTopic string) pubsub.ConsumerErrorHandler {
-
 	return NewWithFallback(
 		sink,
 		func(msg pubsub.ConsumerMessage, err error) error {
@@ -28,7 +27,7 @@ func New(sink pubsub.MessageSink, messageTopic string) pubsub.ConsumerErrorHandl
 	)
 }
 
-// NewWithFallback returns a new JSONDeadLetteringErrorHandler with fallback
+// NewWithFallback returns a new ConsumerErrorHandler which produces JSON serialized FailedConsumerMessage to sink with fallback handler
 func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) pubsub.ConsumerErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		failedMsg := FailedConsumerMessage{
