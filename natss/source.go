@@ -53,28 +53,48 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 	defer conn.Close()
 
+	consumeErrs := make(chan error, 1)
+
+	broken := false
+
 	f := func(msg *stan.Msg) {
+
+		if broken {
+			return
+		}
+
 		m := pubsub.ConsumerMessage{msg.Data}
 		err := handler(m)
 		if err != nil {
 			if err := onError(m, err); err != nil {
-				panic("write the error handling")
+				broken = true
+				consumeErrs <- err
+			} else {
+				msg.Ack()
 			}
+		} else {
+			msg.Ack()
 		}
 	}
 
 	startOpt := stan.StartAt(pb.StartPosition_First)
 
-	_, err = conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID))
+	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
+
+	defer subcription.Close()
+
 	if err != nil {
 		return err
 	}
 
-	//	s.Unsubscribe()
-	<-ctx.Done()
-	conn.Close()
+	select {
+	case <-ctx.Done():
+	case err = <-consumeErrs:
+	}
 
-	return nil
+	//conn.Close()
+
+	return err
 }
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
