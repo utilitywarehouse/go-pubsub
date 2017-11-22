@@ -2,55 +2,40 @@ package sqs
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
-// QueueSource interface describes the consumer operations.
-type QueueSource interface {
+type queue interface {
 	ReceiveMessage() ([]*sqs.Message, error)
 	DeleteMessage(receiptHandle *string) error
-}
-
-// QueueSink describes message publishing method.
-type QueueSink interface {
 	SendMessage(payload *string) error
 }
 
-// SourceQueue holds dependencies to poll for messages.
-type SourceQueue struct {
-	queueURL string // AWS queue URL
-	sqs      *sqs.SQS
-	input    *sqs.ReceiveMessageInput
+type sqsQueue struct {
+	client       *sqs.SQS
+	receiveInput *sqs.ReceiveMessageInput
+	sendInput    *sqs.SendMessageInput
+	deleteInput  *sqs.DeleteMessageInput
 }
 
-// SinkQueue holds dependencies to sink messages.
-type SinkQueue struct {
-	queueURL string // AWS queue URL
-	sqs      *sqs.SQS
-	input    *sqs.SendMessageInput
-}
-
-// NewConsumerQueue returns a new SQS consumer
-func NewConsumerQueue(awsAccessKey, awsSecretKey, awsRegion, queueURL string) *SourceQueue {
-	creds := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
-	sqsInstance := sqs.New(session.Must(session.NewSession()), aws.NewConfig().WithCredentials(creds).WithRegion(awsRegion))
-
-	return &SourceQueue{
-		queueURL: queueURL,
-		sqs:      sqsInstance,
-		input: &sqs.ReceiveMessageInput{
+// NewQueue returns a new SQS queue
+func NewQueue(p client.ConfigProvider, config *aws.Config, queueURL string) queue {
+	return &sqsQueue{
+		client: sqs.New(p, config),
+		receiveInput: &sqs.ReceiveMessageInput{
 			QueueUrl:            aws.String(queueURL),
 			AttributeNames:      aws.StringSlice([]string{"All"}),
-			MaxNumberOfMessages: aws.Int64(10),
+			MaxNumberOfMessages: aws.Int64(1),
 		},
+		sendInput:   &sqs.SendMessageInput{QueueUrl: &queueURL},
+		deleteInput: &sqs.DeleteMessageInput{QueueUrl: aws.String(queueURL)},
 	}
 }
 
 // ReceiveMessage returns a []*sqs.Message or an error if the operation fails.
-func (s *SourceQueue) ReceiveMessage() ([]*sqs.Message, error) {
-	output, err := s.sqs.ReceiveMessage(s.input)
+func (s *sqsQueue) ReceiveMessage() ([]*sqs.Message, error) {
+	output, err := s.client.ReceiveMessage(s.receiveInput)
 	if err != nil {
 		return nil, err
 	}
@@ -60,33 +45,21 @@ func (s *SourceQueue) ReceiveMessage() ([]*sqs.Message, error) {
 
 // DeleteMessage uses the provided receiptHandle identifier (returned after consuming a message)
 // and makes a delete request to AWS SQS.
-func (s *SourceQueue) DeleteMessage(receiptHandle *string) error {
-	_, err := s.sqs.DeleteMessage(&sqs.DeleteMessageInput{
-		QueueUrl:      aws.String(s.queueURL),
-		ReceiptHandle: receiptHandle,
-	})
+func (s *sqsQueue) DeleteMessage(receiptHandle *string) error {
+	input := s.deleteInput
+	input.ReceiptHandle = receiptHandle
+
+	_, err := s.client.DeleteMessage(input)
 
 	return err
 }
 
-// NewSinkQueue returns a pointer to a new Sink instance.
-func NewSinkQueue(awsAccessKey, awsSecretKey, awsRegion, queueURL string) QueueSink {
-	creds := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
-	sqsInstance := sqs.New(session.Must(session.NewSession()), aws.NewConfig().WithCredentials(creds).WithRegion(awsRegion))
-
-	return &SinkQueue{
-		queueURL: queueURL,
-		sqs:      sqsInstance,
-		input:    &sqs.SendMessageInput{QueueUrl: &queueURL},
-	}
-}
-
 // SendMessage sinks message in SQS.
-func (s *SinkQueue) SendMessage(payload *string) error {
-	input := s.input
+func (s *sqsQueue) SendMessage(payload *string) error {
+	input := s.sendInput
 	input.MessageBody = payload
 
-	_, err := s.sqs.SendMessage(input)
+	_, err := s.client.SendMessage(input)
 
 	return err
 }

@@ -4,25 +4,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/pkg/errors"
-	"github.com/utilitywarehouse/go-pubsub/sqs"
+	pubSQS "github.com/utilitywarehouse/go-pubsub/sqs"
 )
 
 func Test_PutMessage_Success(t *testing.T) {
-	s := sqs.NewSink(&mockSink{})
-	msg := sqs.Message{Message: "test string"}
+	s := pubSQS.NewSink(&mockQueue{})
+	msg := pubSQS.Message{Message: "test string"}
 	if err := s.PutMessage(&msg); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
 
 func Test_PutMessageSinkClosed_Fail(t *testing.T) {
-	s := sqs.NewSink(&mockSink{})
+	s := pubSQS.NewSink(&mockQueue{})
 	if err := s.Close(); err != nil {
 		t.Fatalf("unexpected error while closing sink: %v", err)
 	}
 
-	err := s.PutMessage(&sqs.Message{})
+	err := s.PutMessage(&pubSQS.Message{})
 	if !strings.Contains(err.Error(), "sqs connection closed") {
 		t.Errorf("expected error about closed connection, got: %v", err)
 	}
@@ -30,7 +31,7 @@ func Test_PutMessageSinkClosed_Fail(t *testing.T) {
 
 func Test_PutMessageInvalid_Fail(t *testing.T) {
 	fakeErr := errors.New("fake error")
-	s := sqs.NewSink(&mockSink{})
+	s := pubSQS.NewSink(&mockQueue{})
 
 	err := s.PutMessage(&mockMessage{err: fakeErr})
 	if err == nil {
@@ -61,9 +62,9 @@ func Test_PutMessageInvalid_Fail(t *testing.T) {
 
 func Test_PutMessage_Fail(t *testing.T) {
 	fakeErr := errors.New("fake error")
-	s := sqs.NewSink(&mockSink{err: fakeErr})
+	s := pubSQS.NewSink(&mockQueue{sendErr: fakeErr})
 
-	err := s.PutMessage(&sqs.Message{})
+	err := s.PutMessage(&pubSQS.Message{})
 	if errors.Cause(err) != fakeErr {
 		t.Errorf("expected fake error, got: %v", err)
 	}
@@ -87,7 +88,7 @@ func Test_PutMessage_Fail(t *testing.T) {
 }
 
 func Test_PutMessageAlreadyClosed_Fail(t *testing.T) {
-	s := sqs.NewSink(&mockSink{})
+	s := pubSQS.NewSink(&mockQueue{})
 	if err := s.Close(); err != nil {
 		t.Fatalf("unexpected error while closing sink: %v", err)
 	}
@@ -110,10 +111,21 @@ func (mm *mockMessage) Marshal() ([]byte, error) {
 	return nil, mm.err
 }
 
-type mockSink struct {
-	err error
+type mockQueue struct {
+	messages   []*sqs.Message
+	receiveErr error
+	deleteErr  error
+	sendErr    error
 }
 
-func (m *mockSink) SendMessage(pld *string) error {
-	return m.err
+func (m *mockQueue) SendMessage(pld *string) error {
+	return m.sendErr
+}
+
+func (m *mockQueue) ReceiveMessage() ([]*sqs.Message, error) {
+	return m.messages, m.receiveErr
+}
+
+func (m *mockQueue) DeleteMessage(receiptHandle *string) error {
+	return m.deleteErr
 }

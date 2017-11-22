@@ -9,15 +9,15 @@ import (
 
 // Sink holds SQS dependency and other flags that are necessary to identify its status.
 type Sink struct {
-	queue   QueueSink
+	q       queue
 	sinkErr error // holds error when SQS poll failed
 	lk      sync.Mutex
 	closed  bool
 }
 
 // NewSink is the constructor returning a *Sink.
-func NewSink(queue QueueSink) *Sink {
-	return &Sink{queue: queue}
+func NewSink(q queue) *Sink {
+	return &Sink{q: q}
 }
 
 // PutMessage publishes a sqs.Message to SQS.
@@ -35,7 +35,7 @@ func (s *Sink) PutMessage(msg pubsub.ProducerMessage) error {
 	}
 
 	payload := string(marshalledMsg)
-	if err := s.queue.SendMessage(&payload); err != nil {
+	if err := s.q.SendMessage(&payload); err != nil {
 		s.sinkErr = err
 		return errors.Wrap(err, "failed to sink message in sqs")
 	}

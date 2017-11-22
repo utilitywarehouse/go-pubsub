@@ -4,13 +4,21 @@ import (
 	"context"
 	"log"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 	"github.com/utilitywarehouse/go-pubsub/sqs"
 )
 
 func consumerExample() {
 	// create a queue first
-	queue := sqs.NewConsumerQueue("accessKey", "secretKey", "eu-west-1", "https://sqs.eu-west-1.amazonaws.com/123/queueName")
+	creds := credentials.NewStaticCredentials("accessKey", "secretKey", "")
+	p := session.Must(session.NewSession())
+	cfg := aws.NewConfig().WithCredentials(creds).WithRegion("eu-west-1")
+
+	queue := sqs.NewQueue(p, cfg, "https://sqs.eu-west-1.amazonaws.com/123/queueName")
+
 	// then the consumer
 	consumer := sqs.NewConsumer(queue)
 

@@ -24,10 +24,10 @@ type Message struct {
 
 // Consumer polls messages from SQS
 type Consumer struct {
-	queue                  QueueSource
-	deleteAfterConsumption bool  // whether to delete a message after it's successfully processed
-	receiveErr             error // populated when receiving messages from SQS fails
-	// WaitSeconds is the wait time in seconds to wait between API polling requests
+	q          queue
+	receiveErr error // populated when receiving messages from SQS fails
+	// WaitSeconds is the wait time in seconds to wait between API polling requests.
+	// If used, will make fewer requests per day which results in smaller AWS bill.
 	// Defaults to 0 which effectively disables this.
 	WaitSeconds time.Duration
 }
@@ -39,11 +39,8 @@ type ConsumerError struct {
 }
 
 // NewConsumer returns a new instance of SQS Consumer.
-func NewConsumer(queue QueueSource) *Consumer {
-	return &Consumer{
-		queue: queue,
-		deleteAfterConsumption: true,
-	}
+func NewConsumer(q queue) *Consumer {
+	return &Consumer{q: q}
 }
 
 // ConsumeMessages polls messages from SQS
@@ -56,7 +53,7 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 			return ctx.Err()
 		default:
 			time.Sleep(c.WaitSeconds * time.Second)
-			msgs, err := c.queue.ReceiveMessage()
+			msgs, err := c.q.ReceiveMessage()
 
 			// there is no need to set receiveErr to nil before/after an error,
 			// because we are returning the error
@@ -79,27 +76,13 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 					}
 				}
 
-				if !c.deleteAfterConsumption {
-					continue
-				}
-
 				// once the message has been successfully consumed, we can delete it
-				if err := c.queue.DeleteMessage(msg.ReceiptHandle); err != nil {
+				if err := c.q.DeleteMessage(msg.ReceiptHandle); err != nil {
 					return errors.Wrap(err, "failed to delete SQS message")
 				}
 			}
 		}
 	}
-}
-
-// SetDeleteAfterConsumption sets the value of deleteAfterConsumption.
-func (c *Consumer) SetDeleteAfterConsumption(v bool) {
-	c.deleteAfterConsumption = v
-}
-
-// GetDeleteAfterConsumption returns the value of deleteAfterConsumption.
-func (c *Consumer) GetDeleteAfterConsumption() bool {
-	return c.deleteAfterConsumption
 }
 
 // Error method satisfies Error interface of standard library for ConsumerError struct.
