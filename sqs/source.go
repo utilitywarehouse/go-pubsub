@@ -27,6 +27,9 @@ type Consumer struct {
 	queue                  QueueSource
 	deleteAfterConsumption bool  // whether to delete a message after it's successfully processed
 	receiveErr             error // populated when receiving messages from SQS fails
+	// WaitSeconds is the wait time in seconds to wait between API polling requests
+	// Defaults to 0 which effectively disables this.
+	WaitSeconds time.Duration
 }
 
 // ConsumerError holds ID of failed message to process
@@ -52,6 +55,7 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			time.Sleep(c.WaitSeconds * time.Second)
 			msgs, err := c.queue.ReceiveMessage()
 
 			// there is no need to set receiveErr to nil before/after an error,

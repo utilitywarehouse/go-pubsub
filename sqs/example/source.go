@@ -14,6 +14,10 @@ func consumerExample() {
 	// then the consumer
 	consumer := sqs.NewConsumer(queue)
 
+	// Optionally set how long you want to wait between API poll requests (in seconds).
+	// Defaults to 0 (disabled) if not set.
+	consumer.WaitSeconds = 1
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -25,8 +29,7 @@ func consumerExample() {
 
 	// Will poll for messages and if you need to stop the loop, call cancel()
 	// to cancel the context.
-	err := consumer.ConsumeMessages(ctx, handler, errHandler)
-	if err != nil {
+	if err := consumer.ConsumeMessages(ctx, handler, errHandler); err != nil {
 		log.Fatalf("failed to consume from SQS: %v", err)
 	}
 }
