@@ -4,36 +4,64 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/sqs"
+	awsSQS "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/pkg/errors"
 	pubSQS "github.com/utilitywarehouse/go-pubsub/sqs"
 )
 
+func Test_PutMessageMissingClient_Fail(t *testing.T) {
+	_, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{})
+	if err == nil {
+		t.Fatal("expected error about missing SQS client, got: <nil>")
+	}
+
+	if !strings.Contains(err.Error(), "SQS client must not be nil") {
+		t.Errorf("expected error about missing SQS client: got: %v", err)
+	}
+}
+
 func Test_PutMessage_Success(t *testing.T) {
-	s := pubSQS.NewSink(&mockQueue{})
-	msg := pubSQS.Message{Message: "test string"}
+	s, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{
+		Client: &mockQueue{},
+	})
+	if err != nil {
+		t.Fatalf("failed toget SQS message sink: %v", err)
+	}
+
+	msg := message{payload: "test string"}
 	if err := s.PutMessage(&msg); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
 
 func Test_PutMessageSinkClosed_Fail(t *testing.T) {
-	s := pubSQS.NewSink(&mockQueue{})
+	s, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{
+		Client: &mockQueue{},
+	})
+	if err != nil {
+		t.Fatalf("failed toget SQS message sink: %v", err)
+	}
+
 	if err := s.Close(); err != nil {
 		t.Fatalf("unexpected error while closing sink: %v", err)
 	}
 
-	err := s.PutMessage(&pubSQS.Message{})
-	if !strings.Contains(err.Error(), "sqs connection closed") {
+	err = s.PutMessage(&message{})
+	if !strings.Contains(err.Error(), "SQS connection closed") {
 		t.Errorf("expected error about closed connection, got: %v", err)
 	}
 }
 
 func Test_PutMessageInvalid_Fail(t *testing.T) {
 	fakeErr := errors.New("fake error")
-	s := pubSQS.NewSink(&mockQueue{})
+	s, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{
+		Client: &mockQueue{},
+	})
+	if err != nil {
+		t.Fatalf("failed toget SQS message sink: %v", err)
+	}
 
-	err := s.PutMessage(&mockMessage{err: fakeErr})
+	err = s.PutMessage(&mockMessage{err: fakeErr})
 	if err == nil {
 		t.Fatalf("expected marshalling error, got: <nil>")
 	}
@@ -42,7 +70,7 @@ func Test_PutMessageInvalid_Fail(t *testing.T) {
 		t.Errorf("expected fake error, got: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "failed to marshal sqs message") {
+	if !strings.Contains(err.Error(), "failed to marshal SQS message") {
 		t.Errorf("expected failed marshalling error, got: %v", err)
 	}
 
@@ -62,9 +90,15 @@ func Test_PutMessageInvalid_Fail(t *testing.T) {
 
 func Test_PutMessage_Fail(t *testing.T) {
 	fakeErr := errors.New("fake error")
-	s := pubSQS.NewSink(&mockQueue{sendErr: fakeErr})
+	s, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{
+		Client: &mockQueue{sendErr: fakeErr},
+	})
 
-	err := s.PutMessage(&pubSQS.Message{})
+	if err != nil {
+		t.Fatalf("failed toget SQS message sink: %v", err)
+	}
+
+	err = s.PutMessage(&message{})
 	if errors.Cause(err) != fakeErr {
 		t.Errorf("expected fake error, got: %v", err)
 	}
@@ -88,12 +122,19 @@ func Test_PutMessage_Fail(t *testing.T) {
 }
 
 func Test_PutMessageAlreadyClosed_Fail(t *testing.T) {
-	s := pubSQS.NewSink(&mockQueue{})
+	s, err := pubSQS.NewMessageSink(pubSQS.MessageSinkConfig{
+		Client: &mockQueue{},
+	})
+
+	if err != nil {
+		t.Fatalf("failed toget SQS message sink: %v", err)
+	}
+
 	if err := s.Close(); err != nil {
 		t.Fatalf("unexpected error while closing sink: %v", err)
 	}
 
-	err := s.Close()
+	err = s.Close()
 	if err == nil {
 		t.Fatalf("expected error about already closed connection")
 	}
@@ -112,20 +153,31 @@ func (mm *mockMessage) Marshal() ([]byte, error) {
 }
 
 type mockQueue struct {
-	messages   []*sqs.Message
+	messages   []*awsSQS.Message
 	receiveErr error
 	deleteErr  error
 	sendErr    error
 }
 
-func (m *mockQueue) SendMessage(pld *string) error {
-	return m.sendErr
+func (m *mockQueue) SendMessage(input *awsSQS.SendMessageInput) (*awsSQS.SendMessageOutput, error) {
+	return nil, m.sendErr
 }
 
-func (m *mockQueue) ReceiveMessage() ([]*sqs.Message, error) {
-	return m.messages, m.receiveErr
+func (m *mockQueue) ReceiveMessage(input *awsSQS.ReceiveMessageInput) (*awsSQS.ReceiveMessageOutput, error) {
+	return &awsSQS.ReceiveMessageOutput{
+		Messages: m.messages,
+	}, m.receiveErr
 }
 
-func (m *mockQueue) DeleteMessage(receiptHandle *string) error {
-	return m.deleteErr
+func (m *mockQueue) DeleteMessage(input *awsSQS.DeleteMessageInput) (*awsSQS.DeleteMessageOutput, error) {
+	return nil, m.deleteErr
+}
+
+type message struct {
+	payload string
+	err     error
+}
+
+func (msg *message) Marshal() ([]byte, error) {
+	return []byte(msg.payload), msg.err
 }

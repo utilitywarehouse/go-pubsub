@@ -4,47 +4,59 @@ import (
 	"context"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	awsSQS "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/pkg/errors"
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 )
 
-// Message is the structure of an SQS Message
-type Message struct {
-	Type             string     `json:"Type"`
-	MessageID        string     `json:"MessageId"`
-	TopicArn         string     `json:"TopicArn"`
-	Subject          string     `json:"Subject"`
-	Message          string     `json:"Message"`
-	Timestamp        *time.Time `json:"Timestamp"`
-	SignatureVersion string     `json:"SignatureVersion"`
-	Signature        string     `json:"Signature"`
-	SigningCertURL   string     `json:"SigningCertURL"`
-	UnsubscribeURL   string     `json:"UnsubscribeURL"`
-}
-
-// Consumer polls messages from SQS
-type Consumer struct {
-	q          queue
-	receiveErr error // populated when receiving messages from SQS fails
+// MessageSourceConfig allows you to configure various source options.
+type MessageSourceConfig struct {
 	// WaitSeconds is the wait time in seconds to wait between API polling requests.
 	// If used, will make fewer requests per day which results in smaller AWS bill.
 	// Defaults to 0 which effectively disables this.
 	WaitSeconds time.Duration
+	Client      Queue
+	QueueURL    string
 }
 
-// ConsumerError holds ID of failed message to process
+var errMissingClient = errors.New("SQS client must not be nil")
+
+type messageSource struct {
+	q            Queue
+	receiveErr   error // populated when receiving messages from SQS fails
+	receiveInput *awsSQS.ReceiveMessageInput
+	deleteInput  *awsSQS.DeleteMessageInput
+	waitSeconds  time.Duration
+}
+
+// ConsumerError satisfies error interface and is returned when a message fails to be
+// handled. If you do a type switch on the error, you can extract the MsgID.
 type ConsumerError struct {
 	MsgID string
 	Value error
 }
 
-// NewConsumer returns a new instance of SQS Consumer.
-func NewConsumer(q queue) *Consumer {
-	return &Consumer{q: q}
+// NewMessageSource is the source constructor. If a nil client is passed an error is returned.
+func NewMessageSource(config MessageSourceConfig) (pubsub.MessageSource, error) {
+	if config.Client == nil {
+		return nil, errMissingClient
+	}
+
+	return &messageSource{
+		q:           config.Client,
+		waitSeconds: config.WaitSeconds,
+		receiveInput: &awsSQS.ReceiveMessageInput{
+			QueueUrl:            aws.String(config.QueueURL),
+			AttributeNames:      aws.StringSlice([]string{"All"}),
+			MaxNumberOfMessages: aws.Int64(1),
+		},
+		deleteInput: &awsSQS.DeleteMessageInput{QueueUrl: aws.String(config.QueueURL)},
+	}, nil
 }
 
 // ConsumeMessages polls messages from SQS
-func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler,
+func (s *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler,
 	onError pubsub.ConsumerErrorHandler) error {
 
 	for {
@@ -52,16 +64,16 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			time.Sleep(c.WaitSeconds * time.Second)
-			msgs, err := c.q.ReceiveMessage()
-			c.receiveErr = nil
+			time.Sleep(s.waitSeconds * time.Second)
+			msgs, err := s.q.ReceiveMessage(s.receiveInput)
+			s.receiveErr = nil
 
 			if err != nil {
-				c.receiveErr = err
+				s.receiveErr = err
 				return err
 			}
 
-			for _, msg := range msgs {
+			for _, msg := range msgs.Messages {
 				consumerMsg := pubsub.ConsumerMessage{Data: []byte(*msg.Body)}
 
 				if err := handler(consumerMsg); err != nil {
@@ -75,8 +87,11 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 					}
 				}
 
-				// once the message has been successfully consumed, we can delete it
-				if err := c.q.DeleteMessage(msg.ReceiptHandle); err != nil {
+				delInput := s.deleteInput
+				delInput.ReceiptHandle = msg.ReceiptHandle
+
+				// once the message has been successfully consumed, delete it
+				if _, err := s.q.DeleteMessage(delInput); err != nil {
 					return errors.Wrap(err, "failed to delete SQS message")
 				}
 			}
@@ -92,18 +107,13 @@ func (e *ConsumerError) Error() string {
 // Status method is used to understand if the service is healthy or not.
 // In order to prevent making unnecessary API requests to AWS we rely on
 // sqs.ReceiveMessage error to set `receiveErr` field in Consumer.
-func (c *Consumer) Status() (*pubsub.Status, error) {
-	s := pubsub.Status{Working: true}
+func (s *messageSource) Status() (*pubsub.Status, error) {
+	st := pubsub.Status{Working: true}
 
-	if c.receiveErr != nil {
-		s.Working = false
-		s.Problems = append(s.Problems, c.receiveErr.Error())
+	if s.receiveErr != nil {
+		st.Working = false
+		st.Problems = append(st.Problems, s.receiveErr.Error())
 	}
 
-	return &s, nil
-}
-
-// Marshal marshals sqs.Message.Message to []byte.
-func (m *Message) Marshal() ([]byte, error) {
-	return []byte(m.Message), nil
+	return &st, nil
 }

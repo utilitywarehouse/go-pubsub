@@ -12,6 +12,17 @@ import (
 	pubSQS "github.com/utilitywarehouse/go-pubsub/sqs"
 )
 
+func Test_ConsumeMessagesMissingClient_Fail(t *testing.T) {
+	_, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{})
+	if err == nil {
+		t.Fatal("expected error about missing SQS client, got: <nil>")
+	}
+
+	if !strings.Contains(err.Error(), "SQS client must not be nil") {
+		t.Errorf("expected error about missing SQS client: got: %v", err)
+	}
+}
+
 // context canceled
 func Test_ConsumeMessagesCtxCancelled_Fail(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -24,9 +35,14 @@ func Test_ConsumeMessagesCtxCancelled_Fail(t *testing.T) {
 		cancel()
 	}()
 
-	c := pubSQS.NewConsumer(&mockQueue{})
-	err := c.ConsumeMessages(ctx, handler, errHandler)
+	c, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{
+		Client: &mockQueue{},
+	})
+	if err != nil {
+		t.Fatalf("failed to get message source: %v", err)
+	}
 
+	err = c.ConsumeMessages(ctx, handler, errHandler)
 	if err == nil {
 		t.Error("expected context cancelation error, got <nil>")
 	}
@@ -43,9 +59,14 @@ func Test_ConsumeMessages_Fail(t *testing.T) {
 	errHandler := func(pubsub.ConsumerMessage, error) error { return nil }
 
 	fakeErr := errors.New("failed to connect to SQS")
-	c := pubSQS.NewConsumer(&mockQueue{receiveErr: fakeErr})
-	err := c.ConsumeMessages(ctx, handler, errHandler)
+	c, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{
+		Client: &mockQueue{receiveErr: fakeErr},
+	})
+	if err != nil {
+		t.Fatalf("failed to get message source: %v", err)
+	}
 
+	err = c.ConsumeMessages(ctx, handler, errHandler)
 	if errors.Cause(err) != fakeErr {
 		t.Errorf("expected fake error, got: %v", err)
 	}
@@ -83,9 +104,14 @@ func Test_ConsumeMessages_Handler_Fail(t *testing.T) {
 	}
 	msgs = append(msgs, &msg)
 
-	c := pubSQS.NewConsumer(&mockQueue{messages: msgs})
-	err := c.ConsumeMessages(ctx, handler, errHandler)
+	c, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{
+		Client: &mockQueue{messages: msgs},
+	})
+	if err != nil {
+		t.Fatalf("failed to get message source: %v", err)
+	}
 
+	err = c.ConsumeMessages(ctx, handler, errHandler)
 	if errors.Cause(err) != fakeErr {
 		t.Errorf("expected fake error, got: %v", err)
 	}
@@ -119,14 +145,17 @@ func Test_ConsumeMessages_DeleteMessage_Fail(t *testing.T) {
 	msgs = append(msgs, &msg)
 
 	fakeErr := errors.New("couldn't delete message")
-	q := mockQueue{
-		messages:  msgs,
-		deleteErr: fakeErr,
+	c, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{
+		Client: &mockQueue{
+			messages:  msgs,
+			deleteErr: fakeErr,
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to get message source: %v", err)
 	}
 
-	c := pubSQS.NewConsumer(&q)
-	err := c.ConsumeMessages(ctx, handler, errHandler)
-
+	err = c.ConsumeMessages(ctx, handler, errHandler)
 	if err == nil {
 		t.Fatal("expected message deletion error, got <nil>")
 	}
@@ -174,10 +203,14 @@ func Test_ConsumeMessages_DeleteMessage_Success(t *testing.T) {
 		cancel()
 	}()
 
-	q := mockQueue{messages: msgs}
-	c := pubSQS.NewConsumer(&q)
-	err := c.ConsumeMessages(ctx, handler, errHandler)
+	c, err := pubSQS.NewMessageSource(pubSQS.MessageSourceConfig{
+		Client: &mockQueue{messages: msgs},
+	})
+	if err != nil {
+		t.Fatalf("failed to get message source: %v", err)
+	}
 
+	err = c.ConsumeMessages(ctx, handler, errHandler)
 	if err == nil {
 		t.Fatal("expected cancelation error, got <nil>")
 	}
@@ -197,5 +230,18 @@ func Test_ConsumeMessages_DeleteMessage_Success(t *testing.T) {
 
 	if len(st.Problems) != 0 {
 		t.Fatalf("expected 0 status problem, got: %d: %v", len(st.Problems), st.Problems)
+	}
+}
+
+func Test_ConsumerError_Success(t *testing.T) {
+	msgID, value := "12345", errors.New("couldn't handle message")
+
+	err := pubSQS.ConsumerError{
+		MsgID: msgID,
+		Value: value,
+	}
+
+	if err.Error() != value.Error() {
+		t.Errorf("unexpected consumer error value, expected: %v, got: %v", value, err.Error())
 	}
 }
