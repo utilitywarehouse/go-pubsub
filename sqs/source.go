@@ -54,9 +54,8 @@ func (c *Consumer) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerM
 		default:
 			time.Sleep(c.WaitSeconds * time.Second)
 			msgs, err := c.q.ReceiveMessage()
+			c.receiveErr = nil
 
-			// there is no need to set receiveErr to nil before/after an error,
-			// because we are returning the error
 			if err != nil {
 				c.receiveErr = err
 				return err
