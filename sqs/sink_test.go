@@ -139,8 +139,8 @@ func Test_PutMessageAlreadyClosed_Fail(t *testing.T) {
 		t.Fatalf("expected error about already closed connection")
 	}
 
-	if !strings.Contains(err.Error(), "Already closed") {
-		t.Errorf("expected Already closed error, got: %v", err)
+	if !strings.Contains(err.Error(), "already closed") {
+		t.Errorf("expected closed error, got: %v", err)
 	}
 }
 

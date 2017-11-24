@@ -79,7 +79,7 @@ func (s *messageSink) Close() error {
 	defer s.lk.Unlock()
 
 	if s.closed {
-		return errors.New("Already closed")
+		return errors.New("already closed")
 	}
 
 	// there's no connection to close, so we set closed flag to true and
