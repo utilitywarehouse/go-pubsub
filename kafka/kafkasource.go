@@ -2,8 +2,6 @@ package kafka
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/bsm/sarama-cluster"
@@ -24,8 +22,6 @@ type messageSource struct {
 	brokers                  []string
 	offset                   int64
 	metadataRefreshFrequency time.Duration
-	client                   *cluster.Client
-	consumer                 *cluster.Consumer
 }
 
 type MessageSourceConfig struct {
@@ -57,26 +53,18 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 }
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-
-	config := cluster.Config{}
-
+	config := cluster.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
-
-	client, err := cluster.NewClient(mq.brokers, &config)
+	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
 	if err != nil {
 		return err
 	}
-	mq.client = client
-	defer client.Close()
 
-	c, err := cluster.NewConsumerFromClient(client, mq.consumergroup, []string{mq.topic})
-	if err != nil {
-		return err
-	}
-	mq.consumer = c
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	for {
 		select {
@@ -101,24 +89,5 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 // Status reports the status of the message source
 func (mq *messageSource) Status() (*pubsub.Status, error) {
-	status := &pubsub.Status{
-		Working: true,
-	}
-	subs := mq.consumer.Subscriptions()
-
-	partitions, ok := subs[mq.topic]
-	if !ok {
-		return nil, errors.New("cannot get consumer subscriptions")
-	}
-
-	for _, partition := range partitions {
-		num, err := mq.client.InSyncReplicas(mq.topic, partition)
-		if err != nil {
-			return nil, fmt.Errorf("cannot get InSyncReplicas topic: %s, partiton: %d, err: %v", mq.topic, partition, err)
-		}
-		if len(num) <= 0 {
-			status.Problems = append(status.Problems, fmt.Sprintf("error partition InSyncReplicas is 0, topic: %s, partition: %d, isr: %v", mq.topic, partition, num))
-		}
-	}
-	return status, nil
+	return status(mq.brokers)
 }
