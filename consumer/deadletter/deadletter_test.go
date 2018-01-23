@@ -18,6 +18,7 @@ func TestDeadLetter(t *testing.T) {
 	msg := []byte("test")
 	errMsg := "error message"
 	consumerTopic := "consumerTopic"
+	consumerGroup := "consumerGroup"
 
 	err := in.PutMessage(pubsub.SimpleProducerMessage(msg))
 	if err != nil {
@@ -29,7 +30,7 @@ func TestDeadLetter(t *testing.T) {
 		inCancel()
 		return errors.New(errMsg)
 	}
-	dlErrHanlder := pubsub.ConsumerErrorHandler(New(dl, consumerTopic))
+	dlErrHanlder := pubsub.ConsumerErrorHandler(New(dl, consumerTopic, consumerGroup))
 
 	in.ConsumeMessages(inCtx, handler, dlErrHanlder)
 
@@ -56,4 +57,5 @@ func TestDeadLetter(t *testing.T) {
 	assert.Equal(t, fsm.Message, msg)
 	assert.Equal(t, fsm.Err, errMsg)
 	assert.Equal(t, fsm.MessageTopic, consumerTopic)
+	assert.Equal(t, fsm.ConsumerGroup, consumerGroup)
 }
