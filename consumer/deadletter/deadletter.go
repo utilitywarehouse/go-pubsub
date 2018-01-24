@@ -12,27 +12,30 @@ import (
 type FailedConsumerMessage struct {
 	Message      []byte    `json:"message"`
 	MessageTopic string    `json:"messageTopic"`
+	Consumer     string    `json:"consumer"`
 	Err          string    `json:"error"`
 	Timestamp    time.Time `json:"timestamp"`
 }
 
 // New returns a new ConsumerErrorHandler which produces JSON serialized FailedConsumerMessage to sink
-func New(sink pubsub.MessageSink, messageTopic string) pubsub.ConsumerErrorHandler {
+func New(sink pubsub.MessageSink, messageTopic string, consumer string) pubsub.ConsumerErrorHandler {
 	return NewWithFallback(
 		sink,
 		func(msg pubsub.ConsumerMessage, err error) error {
 			return err
 		},
 		messageTopic,
+		consumer,
 	)
 }
 
 // NewWithFallback returns a new ConsumerErrorHandler which produces JSON serialized FailedConsumerMessage to sink with fallback handler
-func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string) pubsub.ConsumerErrorHandler {
+func NewWithFallback(sink pubsub.MessageSink, errHandler pubsub.ConsumerErrorHandler, messageTopic string, consumer string) pubsub.ConsumerErrorHandler {
 	return func(msg pubsub.ConsumerMessage, err error) error {
 		failedMsg := FailedConsumerMessage{
 			Message:      msg.Data,
 			MessageTopic: messageTopic,
+			Consumer:     consumer,
 			Err:          err.Error(),
 			Timestamp:    time.Now(),
 		}
