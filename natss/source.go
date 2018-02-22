@@ -130,11 +130,10 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
 
-	defer subcription.Close()
-
 	if err != nil {
 		return err
 	}
+	defer subcription.Close()
 
 	select {
 	case <-ctx.Done():
