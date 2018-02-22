@@ -39,6 +39,7 @@ type MessageSourceConfig struct {
 	OffsetStartDuration time.Duration
 }
 
+//Offset - represents offset used for consuming msgs from the queue
 type Offset int
 
 type messageSource struct {
@@ -52,7 +53,7 @@ type messageSource struct {
 }
 
 const (
-	//OffsetStartAt- to start at a given msg number
+	//OffsetStartAt - to start at a given msg number"
 	OffsetStartAt Offset = iota
 
 	//OffsetDeliverLast - deliver from the last message
