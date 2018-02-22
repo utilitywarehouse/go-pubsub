@@ -24,12 +24,18 @@ func generateID() string {
 var _ pubsub.MessageSource = (*messageSource)(nil)
 
 type MessageSourceConfig struct {
-	NatsURL             string
-	ClusterID           string
-	Topic               string
-	ConsumerID          string
-	Offset              Offset
-	OffsetStartAtIndex  uint64
+	NatsURL    string
+	ClusterID  string
+	Topic      string
+	ConsumerID string
+
+	//Offset - offset used for consuming messages
+	Offset Offset
+
+	//OffsetStartAtIndex - start delivering messages from this index
+	OffsetStartAtIndex uint64
+
+	//OffsetStartDuration - start delivering messages from this duration ago
 	OffsetStartDuration time.Duration
 }
 
@@ -46,10 +52,17 @@ type messageSource struct {
 }
 
 const (
-	OFFSET_START_AT     Offset = iota
-	OFFSET_DELIVER_LAST Offset = iota
-	OFFSET_DELIVER_ALL  Offset = iota
-	OFFSET_START_TIME   Offset = iota
+	//OffsetStartAt- to start at a given msg number
+	OffsetStartAt Offset = iota
+
+	//OffsetDeliverLast - deliver from the last message
+	OffsetDeliverLast Offset = iota
+
+	//OffsetDeliverAll - deliver all the messages form the begining
+	OffsetDeliverAll Offset = iota
+
+	//OffsetStartTime - deliver messages from a certain time
+	OffsetStartTime Offset = iota
 )
 
 func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
