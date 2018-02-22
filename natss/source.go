@@ -112,16 +112,16 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	switch offset := mq.offset; offset {
 
-	case OFFSET_START_AT:
+	case OffsetStartAt:
 		startOpt = stan.StartAtSequence(mq.offsetStartAtIndex)
 
-	case OFFSET_DELIVER_LAST:
+	case OffsetDeliverLast:
 		startOpt = stan.StartWithLastReceived()
 
-	case OFFSET_DELIVER_ALL:
+	case OffsetDeliverAll:
 		startOpt = stan.DeliverAllAvailable()
 
-	case OFFSET_START_TIME:
+	case OffsetStartTime:
 		startOpt = stan.StartAtTimeDelta(mq.offsetStartDuration)
 	}
 
