@@ -124,7 +124,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case OffsetDeliverAll:
 		startOpt = stan.DeliverAllAvailable()
 
-	case OffsetStartTime:
+	case OffsetStartDuration:
 		startOpt = stan.StartAtTimeDelta(mq.offsetStartDuration)
 	}
 
