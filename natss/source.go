@@ -62,16 +62,19 @@ const (
 	//OffsetDeliverAll - deliver all the messages form the begining
 	OffsetDeliverAll Offset = iota
 
-	//OffsetStartTime - deliver messages from a certain time
-	OffsetStartTime Offset = iota
+	//OffsetStartDuration - deliver messages from a certain time
+	OffsetStartDuration Offset = iota
 )
 
 func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 	return &messageSource{
-		natsURL:    conf.NatsURL,
-		clusterID:  conf.ClusterID,
-		consumerID: conf.ConsumerID,
-		topic:      conf.Topic,
+		natsURL:             conf.NatsURL,
+		clusterID:           conf.ClusterID,
+		consumerID:          conf.ConsumerID,
+		topic:               conf.Topic,
+		offset:              conf.Offset,
+		offsetStartAtIndex:  conf.OffsetStartAtIndex,
+		offsetStartDuration: conf.OffsetStartDuration,
 	}, nil
 }
 
