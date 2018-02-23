@@ -54,16 +54,16 @@ type messageSource struct {
 
 const (
 	//OffsetStartAt - to start at a given msg number"
-	OffsetStartAt Offset = iota
+	OffsetStartAt = Offset(iota)
 
 	//OffsetDeliverLast - deliver from the last message
-	OffsetDeliverLast Offset = iota
+	OffsetDeliverLast
 
 	//OffsetDeliverAll - deliver all the messages form the begining
-	OffsetDeliverAll Offset = iota
+	OffsetDeliverAll
 
 	//OffsetStartDuration - deliver messages from a certain time
-	OffsetStartDuration Offset = iota
+	OffsetStartDuration
 )
 
 func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
