@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
@@ -27,21 +28,53 @@ type MessageSourceConfig struct {
 	ClusterID  string
 	Topic      string
 	ConsumerID string
+
+	//Offset - offset used for consuming messages
+	Offset Offset
+
+	//OffsetStartAtIndex - start delivering messages from this index
+	OffsetStartAtIndex uint64
+
+	//OffsetStartDuration - start delivering messages from this duration ago
+	OffsetStartDuration time.Duration
 }
 
+//Offset - represents offset used for consuming msgs from the queue
+type Offset int
+
 type messageSource struct {
-	natsURL    string
-	clusterID  string
-	consumerID string
-	topic      string
+	natsURL             string
+	clusterID           string
+	consumerID          string
+	topic               string
+	offset              Offset
+	offsetStartAtIndex  uint64
+	offsetStartDuration time.Duration
 }
+
+const (
+	//OffsetStartAt - to start at a given msg number"
+	OffsetStartAt = Offset(iota)
+
+	//OffsetDeliverLast - deliver from the last message
+	OffsetDeliverLast
+
+	//OffsetDeliverAll - deliver all the messages form the begining
+	OffsetDeliverAll
+
+	//OffsetStartDuration - deliver messages from a certain time
+	OffsetStartDuration
+)
 
 func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 	return &messageSource{
-		natsURL:    conf.NatsURL,
-		clusterID:  conf.ClusterID,
-		consumerID: conf.ConsumerID,
-		topic:      conf.Topic,
+		natsURL:             conf.NatsURL,
+		clusterID:           conf.ClusterID,
+		consumerID:          conf.ConsumerID,
+		topic:               conf.Topic,
+		offset:              conf.Offset,
+		offsetStartAtIndex:  conf.OffsetStartAtIndex,
+		offsetStartDuration: conf.OffsetStartDuration,
 	}, nil
 }
 
@@ -77,15 +110,30 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		}
 	}
 
+	//defalt to start from first index
 	startOpt := stan.StartAt(pb.StartPosition_First)
 
-	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
+	switch offset := mq.offset; offset {
 
-	defer subcription.Close()
+	case OffsetStartAt:
+		startOpt = stan.StartAtSequence(mq.offsetStartAtIndex)
+
+	case OffsetDeliverLast:
+		startOpt = stan.StartWithLastReceived()
+
+	case OffsetDeliverAll:
+		startOpt = stan.DeliverAllAvailable()
+
+	case OffsetStartDuration:
+		startOpt = stan.StartAtTimeDelta(mq.offsetStartDuration)
+	}
+
+	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
 
 	if err != nil {
 		return err
 	}
+	defer subcription.Close()
 
 	select {
 	case <-ctx.Done():
