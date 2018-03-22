@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"log"
 	"time"
 
+	nats "github.com/nats-io/go-nats"
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -86,6 +88,14 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 	defer conn.Close()
 
+	natsConn := conn.NatsConn()
+
+	closedHandler := func(natsConnection *nats.Conn) {
+		log.Fatal(errors.New("underlying nats connection closed"))
+	}
+
+	natsConn.SetDisconnectHandler(closedHandler)
+
 	consumeErrs := make(chan error, 1)
 
 	broken := false
@@ -147,4 +157,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
 	return nil, errors.New("status is not implemented")
+}
+
+func (mq *messageSource) HandleCloseConnection() {
+
 }
