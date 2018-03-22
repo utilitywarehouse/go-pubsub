@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	nats "github.com/nats-io/go-nats"
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/go-nats-streaming/pb"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -86,7 +87,19 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 	defer conn.Close()
 
-	consumeErrs := make(chan error, 1)
+	natsConn := conn.NatsConn()
+
+	anyError := make(chan error, 1)
+
+	closedHandler := func(natsConnection *nats.Conn) {
+		select {
+
+		case anyError <- errors.New("underlying nats connection to " + mq.natsURL + " failed"):
+		default:
+		}
+	}
+
+	natsConn.SetDisconnectHandler(closedHandler)
 
 	broken := false
 
@@ -101,7 +114,11 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		if err != nil {
 			if err := onError(m, err); err != nil {
 				broken = true
-				consumeErrs <- err
+				select {
+				case anyError <- err:
+				default:
+				}
+
 			} else {
 				msg.Ack()
 			}
@@ -137,10 +154,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	select {
 	case <-ctx.Done():
-	case err = <-consumeErrs:
+	case err = <-anyError:
 	}
-
-	//conn.Close()
 
 	return err
 }
