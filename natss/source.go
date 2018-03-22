@@ -94,7 +94,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	closedHandler := func(natsConnection *nats.Conn) {
 		select {
 
-		case anyError <- errors.New("underlying nats connection failed"):
+		case anyError <- errors.New("underlying nats connection to " + mq.natsURL + " failed"):
 		default:
 		}
 	}
@@ -156,8 +156,6 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case <-ctx.Done():
 	case err = <-anyError:
 	}
-
-	//conn.Close()
 
 	return err
 }
