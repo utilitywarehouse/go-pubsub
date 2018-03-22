@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"log"
 	"time"
 
 	nats "github.com/nats-io/go-nats"
@@ -90,13 +89,17 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn := conn.NatsConn()
 
+	anyError := make(chan error, 1)
+
 	closedHandler := func(natsConnection *nats.Conn) {
-		log.Fatal(errors.New("underlying nats connection closed"))
+		select {
+
+		case anyError <- errors.New("underlying nats connection failed"):
+		default:
+		}
 	}
 
 	natsConn.SetDisconnectHandler(closedHandler)
-
-	consumeErrs := make(chan error, 1)
 
 	broken := false
 
@@ -111,7 +114,11 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		if err != nil {
 			if err := onError(m, err); err != nil {
 				broken = true
-				consumeErrs <- err
+				select {
+				case anyError <- err:
+				default:
+				}
+
 			} else {
 				msg.Ack()
 			}
@@ -147,7 +154,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	select {
 	case <-ctx.Done():
-	case err = <-consumeErrs:
+	case err = <-anyError:
 	}
 
 	//conn.Close()
@@ -157,8 +164,4 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
 	return nil, errors.New("status is not implemented")
-}
-
-func (mq *messageSource) HandleCloseConnection() {
-
 }
