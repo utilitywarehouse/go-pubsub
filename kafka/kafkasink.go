@@ -25,9 +25,10 @@ type messageSink struct {
 }
 
 type MessageSinkConfig struct {
-	Topic   string
-	Brokers []string
-	KeyFunc func(pubsub.ProducerMessage) []byte
+	Topic           string
+	Brokers         []string
+	KeyFunc         func(pubsub.ProducerMessage) []byte
+	MaxMessageBytes *int
 }
 
 func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
@@ -38,6 +39,10 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 	conf.Producer.Return.Errors = true
 	conf.Producer.Retry.Max = 3
 	conf.Producer.Timeout = time.Duration(60) * time.Second
+
+	if config.MaxMessageBytes != nil {
+		conf.Producer.MaxMessageBytes = *config.MaxMessageBytes
+	}
 
 	if config.KeyFunc != nil {
 		conf.Producer.Partitioner = sarama.NewHashPartitioner
