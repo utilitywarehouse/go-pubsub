@@ -41,7 +41,7 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 	conf.Producer.Timeout = time.Duration(60) * time.Second
 
 	if config.MaxMessageBytes != 0 {
-		if config.MaxMessageBytes > 100*1024*1024 {
+		if config.MaxMessageBytes > sarama.MaxRequestSize {
 			sarama.MaxRequestSize = int32(config.MaxMessageBytes)
 		}
 		conf.Producer.MaxMessageBytes = config.MaxMessageBytes
