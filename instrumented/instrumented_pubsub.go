@@ -15,6 +15,18 @@ type MessageSource struct {
 	topic   string
 }
 
+// NewDefaultMessageSource returns a new pubsub MessageSource wrapped in default instrumentation
+func NewDefaultMessageSource(source pubsub.MessageSource, topic string) pubsub.MessageSource {
+	return NewMessageSource(
+		source,
+		prometheus.CounterOpts{
+			Name: "messages_consumed_total",
+			Help: "The total count of messages consumed",
+		},
+		topic,
+	)
+}
+
 // NewMessageSource returns a new MessageSource
 func NewMessageSource(
 	source pubsub.MessageSource,
@@ -76,6 +88,18 @@ func (ims *MessageSink) Close() error {
 // Status returns the status of this sink, or an error if the status could not be determined.
 func (ims *MessageSink) Status() (*pubsub.Status, error) {
 	return ims.impl.Status()
+}
+
+// NewDefaultMessageSink returns a new pubsub MessageSink wrapped in default instrumentation
+func NewDefaultMessageSink(sink pubsub.MessageSink, topic string) pubsub.MessageSink {
+	return NewMessageSink(
+		sink,
+		prometheus.CounterOpts{
+			Name: "messages_produced_total",
+			Help: "The total count of messages produced",
+		},
+		topic,
+	)
 }
 
 // NewMessageSink constructs a new pubsub MessageSink wrapped in instrumentation
