@@ -145,12 +145,16 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		startOpt = stan.StartAtTimeDelta(mq.offsetStartDuration)
 	}
 
-	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
-
+	var subscription stan.Subscription
+	if mq.consumerID != "" { // durable
+		subscription, err = conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.SetManualAckMode(), stan.DurableName(mq.consumerID))
+	} else { // non-durable
+		subscription, err = conn.Subscribe(mq.topic, f, startOpt, stan.SetManualAckMode())
+	}
 	if err != nil {
 		return err
 	}
-	defer subcription.Close()
+	defer subscription.Close()
 
 	select {
 	case <-ctx.Done():
