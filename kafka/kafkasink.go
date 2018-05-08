@@ -10,7 +10,10 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-var _ pubsub.MessageSink = (*messageSink)(nil)
+var (
+	defaultSinkVersion                    = sarama.V0_8_2_0
+	_                  pubsub.MessageSink = (*messageSink)(nil)
+)
 
 type messageSink struct {
 	topic string
@@ -29,16 +32,17 @@ type MessageSinkConfig struct {
 	Brokers         []string
 	KeyFunc         func(pubsub.ProducerMessage) []byte
 	MaxMessageBytes int
+	Version         *sarama.KafkaVersion
 }
 
 func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
-
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
 	conf.Producer.Return.Successes = true
 	conf.Producer.Return.Errors = true
 	conf.Producer.Retry.Max = 3
 	conf.Producer.Timeout = time.Duration(60) * time.Second
+	conf.Version = defaultSinkVersion
 
 	if config.MaxMessageBytes != 0 {
 		if config.MaxMessageBytes > int(sarama.MaxRequestSize) {
@@ -51,6 +55,10 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 		conf.Producer.Partitioner = sarama.NewHashPartitioner
 	} else {
 		conf.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	}
+
+	if config.Version != nil {
+		conf.Version = *config.Version
 	}
 
 	producer, err := sarama.NewSyncProducer(config.Brokers, conf)
