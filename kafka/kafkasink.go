@@ -29,10 +29,10 @@ type MessageSinkConfig struct {
 	Brokers         []string
 	KeyFunc         func(pubsub.ProducerMessage) []byte
 	MaxMessageBytes int
+	Version         *sarama.KafkaVersion
 }
 
 func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
-
 	conf := sarama.NewConfig()
 	conf.Producer.RequiredAcks = sarama.WaitForAll
 	conf.Producer.Return.Successes = true
@@ -51,6 +51,10 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 		conf.Producer.Partitioner = sarama.NewHashPartitioner
 	} else {
 		conf.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	}
+
+	if config.Version != nil {
+		conf.Version = *config.Version
 	}
 
 	producer, err := sarama.NewSyncProducer(config.Brokers, conf)

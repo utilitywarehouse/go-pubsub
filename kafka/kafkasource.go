@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
 )
@@ -22,6 +23,7 @@ type messageSource struct {
 	brokers                  []string
 	offset                   int64
 	metadataRefreshFrequency time.Duration
+	Version                  *sarama.KafkaVersion
 }
 
 type MessageSourceConfig struct {
@@ -30,10 +32,10 @@ type MessageSourceConfig struct {
 	Brokers                  []string
 	Offset                   int64
 	MetadataRefreshFrequency time.Duration
+	Version                  *sarama.KafkaVersion
 }
 
 func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
-
 	offset := OffsetLatest
 	if config.Offset != 0 {
 		offset = config.Offset
@@ -49,6 +51,7 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 		brokers:       config.Brokers,
 		offset:        offset,
 		metadataRefreshFrequency: mrf,
+		Version:                  config.Version,
 	}
 }
 
@@ -57,6 +60,11 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
+
+	if mq.Version != nil {
+		config.Version = *mq.Version
+	}
+
 	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
 	if err != nil {
 		return err
