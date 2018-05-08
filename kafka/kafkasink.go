@@ -10,10 +10,7 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-var (
-	defaultSinkVersion                    = sarama.V0_8_2_0
-	_                  pubsub.MessageSink = (*messageSink)(nil)
-)
+var _ pubsub.MessageSink = (*messageSink)(nil)
 
 type messageSink struct {
 	topic string
@@ -42,7 +39,6 @@ func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 	conf.Producer.Return.Errors = true
 	conf.Producer.Retry.Max = 3
 	conf.Producer.Timeout = time.Duration(60) * time.Second
-	conf.Version = defaultSinkVersion
 
 	if config.MaxMessageBytes != 0 {
 		if config.MaxMessageBytes > int(sarama.MaxRequestSize) {
