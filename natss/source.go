@@ -38,6 +38,8 @@ type MessageSourceConfig struct {
 
 	//OffsetStartDuration - start delivering messages from this duration ago
 	OffsetStartDuration time.Duration
+
+	NonDurable bool
 }
 
 //Offset - represents offset used for consuming msgs from the queue
@@ -51,6 +53,7 @@ type messageSource struct {
 	offset              Offset
 	offsetStartAtIndex  uint64
 	offsetStartDuration time.Duration
+	nonDurable          bool
 }
 
 const (
@@ -76,6 +79,7 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 		offset:              conf.Offset,
 		offsetStartAtIndex:  conf.OffsetStartAtIndex,
 		offsetStartDuration: conf.OffsetStartDuration,
+		nonDurable:          conf.NonDurable,
 	}, nil
 }
 
@@ -145,12 +149,19 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		startOpt = stan.StartAtTimeDelta(mq.offsetStartDuration)
 	}
 
-	subcription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, startOpt, stan.DurableName(mq.consumerID), stan.SetManualAckMode())
+	opts := []stan.SubscriptionOption{
+		startOpt,
+		stan.SetManualAckMode(),
+	}
+	if !mq.nonDurable {
+		opts = append(opts, stan.DurableName(mq.consumerID))
+	}
 
+	subscription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, opts...)
 	if err != nil {
 		return err
 	}
-	defer subcription.Close()
+	defer subscription.Close()
 
 	select {
 	case <-ctx.Done():
