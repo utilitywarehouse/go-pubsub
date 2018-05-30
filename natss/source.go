@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	nats "github.com/nats-io/go-nats"
@@ -56,6 +57,7 @@ type messageSource struct {
 	offsetStartDuration time.Duration
 	nonDurable          bool
 	ackWait             *time.Duration
+	conn                stan.Conn
 }
 
 const (
@@ -92,6 +94,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	if err != nil {
 		return err
 	}
+	mq.conn = conn
 	defer conn.Close()
 
 	natsConn := conn.NatsConn()
@@ -178,5 +181,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 }
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
+	if mq.conn != nil {
+		return natsStatus(*mq.conn.NatsConn()), nil
+	}
+	return nil, fmt.Errorf("nats connection not established yet")
 }
