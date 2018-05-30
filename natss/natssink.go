@@ -47,5 +47,5 @@ func (mq *messageSink) Close() error {
 }
 
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return natsStatus(*mq.sc.NatsConn()), nil
+	return natsStatus(mq.sc.NatsConn())
 }

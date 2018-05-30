@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"time"
 
 	nats "github.com/nats-io/go-nats"
@@ -181,8 +180,5 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 }
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
-	if mq.conn != nil {
-		return natsStatus(*mq.conn.NatsConn()), nil
-	}
-	return nil, fmt.Errorf("nats connection not established yet")
+	return natsStatus(mq.conn.NatsConn())
 }
