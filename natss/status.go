@@ -8,6 +8,7 @@ import (
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 )
 
+// ErrNotConnected is returned if a status is requested before the connection has been initialized
 var ErrNotConnected = errors.New("nats not connected")
 
 func natsStatus(nc *nats.Conn) (*pubsub.Status, error) {
