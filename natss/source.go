@@ -40,6 +40,7 @@ type MessageSourceConfig struct {
 	OffsetStartDuration time.Duration
 
 	NonDurable bool
+	AckWait    *time.Duration
 }
 
 //Offset - represents offset used for consuming msgs from the queue
@@ -54,6 +55,7 @@ type messageSource struct {
 	offsetStartAtIndex  uint64
 	offsetStartDuration time.Duration
 	nonDurable          bool
+	ackWait             *time.Duration
 }
 
 const (
@@ -80,6 +82,7 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 		offsetStartAtIndex:  conf.OffsetStartAtIndex,
 		offsetStartDuration: conf.OffsetStartDuration,
 		nonDurable:          conf.NonDurable,
+		ackWait:             conf.AckWait,
 	}, nil
 }
 
@@ -155,6 +158,9 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 	if !mq.nonDurable {
 		opts = append(opts, stan.DurableName(mq.consumerID))
+	}
+	if mq.ackWait != nil {
+		opts = append(opts, stan.AckWait(*mq.ackWait))
 	}
 
 	subscription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, opts...)
