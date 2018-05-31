@@ -56,6 +56,7 @@ type messageSource struct {
 	offsetStartDuration time.Duration
 	nonDurable          bool
 	ackWait             *time.Duration
+	conn                stan.Conn
 }
 
 const (
@@ -92,6 +93,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	if err != nil {
 		return err
 	}
+	mq.conn = conn
 	defer conn.Close()
 
 	natsConn := conn.NatsConn()
@@ -178,5 +180,5 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 }
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
+	return natsStatus(mq.conn.NatsConn())
 }

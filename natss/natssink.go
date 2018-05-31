@@ -1,7 +1,7 @@
 package natss
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/utilitywarehouse/go-pubsub"
@@ -18,20 +18,19 @@ type MessageSinkConfig struct {
 
 type messageSink struct {
 	topic string
-
-	conn stan.Conn
+	sc    stan.Conn // nats streaming
 }
 
 func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
 
-	conn, err := stan.Connect(config.ClusterID, config.ClientID, stan.NatsURL(config.NatsURL))
+	sc, err := stan.Connect(config.ClusterID, config.ClientID, stan.NatsURL(config.NatsURL))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "connecting nats streaming client to cluster: %s at: %s", config.ClusterID, config.NatsURL)
 	}
 
 	return &messageSink{
 		topic: config.Topic,
-		conn:  conn,
+		sc:    sc,
 	}, nil
 }
 
@@ -40,13 +39,13 @@ func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
 	if err != nil {
 		return err
 	}
-	return mq.conn.Publish(mq.topic, data)
+	return mq.sc.Publish(mq.topic, data)
 }
 
 func (mq *messageSink) Close() error {
-	return mq.conn.Close()
+	return mq.sc.Close()
 }
 
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
+	return natsStatus(mq.sc.NatsConn())
 }
