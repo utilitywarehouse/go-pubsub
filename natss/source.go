@@ -39,8 +39,9 @@ type MessageSourceConfig struct {
 	//OffsetStartDuration - start delivering messages from this duration ago
 	OffsetStartDuration time.Duration
 
-	NonDurable bool
-	AckWait    *time.Duration
+	NonDurable  bool
+	AckWait     *time.Duration
+	MaxInflight *int
 }
 
 //Offset - represents offset used for consuming msgs from the queue
@@ -56,6 +57,7 @@ type messageSource struct {
 	offsetStartDuration time.Duration
 	nonDurable          bool
 	ackWait             *time.Duration
+	maxInflight         *int
 	conn                stan.Conn
 }
 
@@ -84,6 +86,7 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 		offsetStartDuration: conf.OffsetStartDuration,
 		nonDurable:          conf.NonDurable,
 		ackWait:             conf.AckWait,
+		maxInflight:         conf.MaxInflight,
 	}, nil
 }
 
@@ -163,6 +166,9 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 	if mq.ackWait != nil {
 		opts = append(opts, stan.AckWait(*mq.ackWait))
+	}
+	if mq.maxInflight != nil {
+		opts = append(opts, stan.MaxInflight(*mq.maxInflight))
 	}
 
 	subscription, err := conn.QueueSubscribe(mq.topic, mq.consumerID, f, opts...)
