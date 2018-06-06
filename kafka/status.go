@@ -1,39 +1,31 @@
 package kafka
 
 import (
-	"fmt"
-	"net"
-	"time"
-
+	"github.com/Shopify/sarama"
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-func status(brokers []string) (*pubsub.Status, error) {
-	errs := make(chan error)
+func status(brokerAddrs []string, topic string) (*pubsub.Status, error) {
+	status := &pubsub.Status{}
 
-	for _, broker := range brokers {
-		go func(broker string) {
-			conn, err := net.DialTimeout("tcp", broker, 5*time.Second)
-			if err != nil {
-				errs <- fmt.Errorf("Failed to connect to broker %s: %v", broker, err)
-				return
-			}
-			if err = conn.Close(); err != nil {
-				errs <- fmt.Errorf("Failed to close connection to broker %s: %v", broker, err)
-				return
-			}
-			errs <- nil
-		}(broker)
+	client, err := sarama.NewClient(brokerAddrs, sarama.NewConfig())
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	writablePartitions, err := client.WritablePartitions(topic)
+	if err != nil {
+		status.Working = false
+		status.Problems = append(status.Problems, err.Error())
+		return status, nil
+	}
+	if len(writablePartitions) == 0 {
+		status.Working = false
+		status.Problems = append(status.Problems, "no writable partitions")
+		return status, nil
 	}
 
-	s := &pubsub.Status{}
-	for range brokers {
-		err := <-errs
-		if err != nil {
-			s.Problems = append(s.Problems, err.Error())
-		} else {
-			s.Working = true
-		}
-	}
-	return s, nil
+	status.Working = true
+	return status, nil
 }

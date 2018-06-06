@@ -102,5 +102,5 @@ func (mq *messageSink) Close() error {
 
 // Status reports the status of the message sink
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return status(mq.brokers)
+	return status(mq.brokers, mq.topic)
 }
