@@ -186,5 +186,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 }
 
 func (mq *messageSource) Status() (*pubsub.Status, error) {
+	if mq.conn == nil {
+		return nil, ErrNotConnected
+	}
 	return natsStatus(mq.conn.NatsConn())
 }
