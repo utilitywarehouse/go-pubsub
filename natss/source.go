@@ -4,8 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	nats "github.com/nats-io/go-nats"
 	"github.com/nats-io/go-nats-streaming"
@@ -92,7 +93,10 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
-	conn, err := stan.Connect(mq.clusterID, mq.consumerID+generateID(), stan.NatsURL(mq.natsURL))
+	anyError := make(chan error, 2)
+	conn, err := stan.Connect(mq.clusterID, mq.consumerID+generateID(), stan.NatsURL(mq.natsURL), stan.SetConnectionLostHandler(func(_ stan.Conn, e error) {
+		anyError <- errors.Wrap(e, "nats streaming connection lost")
+	}))
 	if err != nil {
 		return err
 	}
@@ -100,9 +104,6 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	defer conn.Close()
 
 	natsConn := conn.NatsConn()
-
-	anyError := make(chan error, 1)
-
 	closedHandler := func(natsConnection *nats.Conn) {
 		select {
 

@@ -1,6 +1,8 @@
 package natss
 
 import (
+	"sync"
+
 	"github.com/pkg/errors"
 
 	"github.com/nats-io/go-nats-streaming"
@@ -16,25 +18,41 @@ type MessageSinkConfig struct {
 	ClientID  string
 }
 
+type connectionState struct {
+	sync.RWMutex
+	err error
+}
+
+var ErrConnLost = errors.New("nats streaming connection lost")
+
 type messageSink struct {
 	topic string
 	sc    stan.Conn // nats streaming
+	state connectionState
 }
 
 func NewMessageSink(config MessageSinkConfig) (pubsub.MessageSink, error) {
+	sink := messageSink{topic: config.Topic}
 
-	sc, err := stan.Connect(config.ClusterID, config.ClientID, stan.NatsURL(config.NatsURL))
+	sc, err := stan.Connect(config.ClusterID, config.ClientID, stan.NatsURL(config.NatsURL), stan.SetConnectionLostHandler(func(_ stan.Conn, e error) {
+		sink.state.Lock()
+		sink.state.err = errors.Wrapf(ErrConnLost, "underlying error: %s", e.Error())
+		sink.state.Unlock()
+	}))
 	if err != nil {
 		return nil, errors.Wrapf(err, "connecting nats streaming client to cluster: %s at: %s", config.ClusterID, config.NatsURL)
 	}
-
-	return &messageSink{
-		topic: config.Topic,
-		sc:    sc,
-	}, nil
+	sink.sc = sc
+	return &sink, nil
 }
 
 func (mq *messageSink) PutMessage(m pubsub.ProducerMessage) error {
+	mq.state.RLock()
+	if mq.state.err != nil {
+		mq.state.RUnlock()
+		return mq.state.err
+	}
+	mq.state.RUnlock()
 	data, err := m.Marshal()
 	if err != nil {
 		return err
@@ -47,5 +65,15 @@ func (mq *messageSink) Close() error {
 }
 
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return natsStatus(mq.sc.NatsConn())
+	natsStatus, err := natsStatus(mq.sc.NatsConn())
+	if err != nil {
+		return nil, err
+	}
+	mq.state.RLock()
+	if mq.state.err != nil {
+		natsStatus.Working = false
+		natsStatus.Problems = append(natsStatus.Problems, mq.state.err.Error())
+	}
+	mq.state.RUnlock()
+	return natsStatus, nil
 }
