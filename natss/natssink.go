@@ -23,6 +23,8 @@ type connectionState struct {
 	err error
 }
 
+// ErrConnLost is the error created when the underlying nats streaming client
+// has established that the connection to the nats streaming server has been lost
 var ErrConnLost = errors.New("nats streaming connection lost")
 
 type messageSink struct {
