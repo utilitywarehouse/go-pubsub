@@ -191,7 +191,7 @@ func TestConsumeError(t *testing.T) {
 }
 
 func produceMessage(t *testing.T, topicName, message string) {
-	sink, err := NewMessageSink(MessageSinkConfig{topicName, []string{*broker}, nil})
+	sink, err := NewMessageSink(MessageSinkConfig{Topic: topicName, Brokers: []string{*broker}})
 	if err != nil {
 		t.Fatal(err)
 	}
