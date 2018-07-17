@@ -23,6 +23,7 @@ type messageSource struct {
 	brokers                  []string
 	offset                   int64
 	metadataRefreshFrequency time.Duration
+	offsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
 }
 
@@ -32,6 +33,7 @@ type MessageSourceConfig struct {
 	Brokers                  []string
 	Offset                   int64
 	MetadataRefreshFrequency time.Duration
+	OffsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
 }
 
@@ -46,10 +48,11 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 	}
 
 	return &messageSource{
-		consumergroup: config.ConsumerGroup,
-		topic:         config.Topic,
-		brokers:       config.Brokers,
-		offset:        offset,
+		consumergroup:            config.ConsumerGroup,
+		topic:                    config.Topic,
+		brokers:                  config.Brokers,
+		offset:                   offset,
+		offsetsRetention:         config.OffsetsRetention,
 		metadataRefreshFrequency: mrf,
 		Version:                  config.Version,
 	}
@@ -60,6 +63,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
+	config.Consumer.Offsets.Retention = mq.offsetsRetention
 
 	if mq.Version != nil {
 		config.Version = *mq.Version
