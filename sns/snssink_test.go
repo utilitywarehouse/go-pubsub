@@ -37,7 +37,7 @@ func TestSNSSink_PutMessagePublishError(t *testing.T) {
 	sink := sns.NewTestSNSSink(mockAPI, topic)
 	var payload pubsub.SimpleProducerMessage = []byte("simple payload")
 
-	mockAPI.EXPECT().Publish(Any()).Return(errors.New("test error")).Times(1)
+	mockAPI.EXPECT().Publish(Any()).Return(nil, errors.New("test error")).Times(1)
 	err := sink.PutMessage(payload)
 	if err == nil {
 		t.Error("PutMessage() failed to return expected error on Publish().")
@@ -57,7 +57,7 @@ func TestSNSSink_PutMessageMarshallError(t *testing.T) {
 
 	sink := sns.NewTestSNSSink(mockAPI, topic)
 
-	mockAPI.EXPECT().Publish(Any()).Times(1)
+	mockAPI.EXPECT().Publish(Any()).Times(0)
 	err := sink.PutMessage(ErrorPayload{})
 	if err == nil {
 		t.Errorf("PutMessage() failed to return expected error on Marshall().")

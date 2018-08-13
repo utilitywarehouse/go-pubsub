@@ -10,27 +10,26 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
-// SNSSink provides producer functionality for AWS SNS
-type SNSSink struct {
+type messageSink struct {
 	client snsiface.SNSAPI
 	topic  string
 }
 
-// NewSNSSink constructor function for SNSSink struct
+// NewSNSSink is a constructor for new AWS SNS MessageSink type
 func NewSNSSink(conf *aws.Config, topic string) (pubsub.MessageSink, error) {
 	sess, err := session.NewSession(conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not construct AWS Session")
 	}
 
-	return &SNSSink{
+	return &messageSink{
 		client: sns.New(sess),
 		topic:  topic,
 	}, nil
 }
 
 // PutMessage sends ProducerMessage types to AWS SNS
-func (s *SNSSink) PutMessage(message pubsub.ProducerMessage) error {
+func (s *messageSink) PutMessage(message pubsub.ProducerMessage) error {
 	b, err := message.Marshal()
 	if err != nil {
 		return errors.Wrap(err, "SNS Sink could not marshal ProducerMessage")
@@ -50,7 +49,7 @@ func (s *SNSSink) PutMessage(message pubsub.ProducerMessage) error {
 }
 
 // Status used to check status of connection to AWS SNS
-func (s *SNSSink) Status() (*pubsub.Status, error) {
+func (s *messageSink) Status() (*pubsub.Status, error) {
 	topics, err := s.client.ListTopics(&sns.ListTopicsInput{})
 	if err != nil {
 		return nil, err
@@ -76,6 +75,6 @@ func (s *SNSSink) Status() (*pubsub.Status, error) {
 }
 
 // Close is stubbed as there is no equivalent on the SNS Client.
-func (s *SNSSink) Close() error {
+func (s *messageSink) Close() error {
 	return nil
 }
