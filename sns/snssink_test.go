@@ -47,7 +47,7 @@ func TestSNSSink_PutMessagePublishError(t *testing.T) {
 type ErrorPayload struct{}
 
 func (e ErrorPayload) Marshal() ([]byte, error) {
-	return nil, errors.New("an error!")
+	return nil, errors.New("an error")
 }
 
 func TestSNSSink_PutMessageMarshallError(t *testing.T) {

@@ -10,11 +10,13 @@ import (
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
+// SNSSink provides producer functionality for AWS SNS
 type SNSSink struct {
 	client snsiface.SNSAPI
 	topic  string
 }
 
+// NewSNSSink constructor function for SNSSink struct
 func NewSNSSink(conf *aws.Config, topic string) (pubsub.MessageSink, error) {
 	sess, err := session.NewSession(conf)
 	if err != nil {
@@ -27,6 +29,7 @@ func NewSNSSink(conf *aws.Config, topic string) (pubsub.MessageSink, error) {
 	}, nil
 }
 
+// PutMessage sends ProducerMessage types to AWS SNS
 func (s *SNSSink) PutMessage(message pubsub.ProducerMessage) error {
 	b, err := message.Marshal()
 	if err != nil {
@@ -46,6 +49,7 @@ func (s *SNSSink) PutMessage(message pubsub.ProducerMessage) error {
 	return nil
 }
 
+// Status used to check status of connection to AWS SNS
 func (s *SNSSink) Status() (*pubsub.Status, error) {
 	topics, err := s.client.ListTopics(&sns.ListTopicsInput{})
 	if err != nil {
@@ -71,6 +75,7 @@ func (s *SNSSink) Status() (*pubsub.Status, error) {
 	return status, nil
 }
 
+// Close is stubbed as there is no equivalent on the SNS Client.
 func (s *SNSSink) Close() error {
 	return nil
 }
