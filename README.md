@@ -14,6 +14,7 @@ Current implementations and their status
 | Nats streaming                           | beta          |
 | AMQP                                     | incomplete    |
 | AWS SQS                                  | beta          |
+| AWS SNS                                  | beta          |
 
 
 The API is not yet guaranteed but changes should be minimal from now.
