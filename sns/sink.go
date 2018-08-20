@@ -1,7 +1,6 @@
 package sns
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
@@ -11,8 +10,9 @@ import (
 )
 
 type messageSink struct {
-	client snsiface.SNSAPI
-	topic  string
+	client    snsiface.SNSAPI
+	topic     string
+	lastError error
 }
 
 // NewSNSSink is a constructor for new AWS SNS MessageSink type
@@ -23,8 +23,9 @@ func NewSNSSink(conf *aws.Config, topic string) (pubsub.MessageSink, error) {
 	}
 
 	return &messageSink{
-		client: sns.New(sess),
-		topic:  topic,
+		client:    sns.New(sess),
+		topic:     topic,
+		lastError: nil,
 	}, nil
 }
 
@@ -32,6 +33,7 @@ func NewSNSSink(conf *aws.Config, topic string) (pubsub.MessageSink, error) {
 func (s *messageSink) PutMessage(message pubsub.ProducerMessage) error {
 	b, err := message.Marshal()
 	if err != nil {
+		s.lastError = err
 		return errors.Wrap(err, "SNS Sink could not marshal ProducerMessage")
 	}
 
@@ -42,6 +44,7 @@ func (s *messageSink) PutMessage(message pubsub.ProducerMessage) error {
 
 	_, err = s.client.Publish(input)
 	if err != nil {
+		s.lastError = err
 		return errors.Wrap(err, "error publishing to SNS")
 	}
 
@@ -50,27 +53,14 @@ func (s *messageSink) PutMessage(message pubsub.ProducerMessage) error {
 
 // Status used to check status of connection to AWS SNS
 func (s *messageSink) Status() (*pubsub.Status, error) {
-	topics, err := s.client.ListTopics(&sns.ListTopicsInput{})
-	if err != nil {
-		return nil, err
+	status := &pubsub.Status{
+		Working: true,
 	}
-
-	status := &pubsub.Status{}
-	if len(topics.Topics) < 1 {
+	if s.lastError != nil {
 		status.Working = false
-		status.Problems = append(status.Problems, "no SNS topics")
-		return status, nil
+		status.Problems = append(status.Problems, s.lastError.Error())
 	}
 
-	for _, x := range topics.Topics {
-		if *x.TopicArn == s.topic {
-			status.Working = true
-			return status, nil
-		}
-	}
-
-	status.Working = false
-	status.Problems = append(status.Problems, fmt.Sprintf("%s not in topic list [%v]", s.topic, topics.Topics))
 	return status, nil
 }
 
