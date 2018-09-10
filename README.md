@@ -10,7 +10,6 @@ Current implementations and their status
 | ---------------------------------------- | ------------- |
 | Mock (in memory testing implementation)  | incomplete    |
 | Apache Kafka                             | beta          |
-| Nats                                     | incomplete    |
 | Nats streaming                           | beta          |
 | AMQP                                     | incomplete    |
 | AWS SQS                                  | beta          |
