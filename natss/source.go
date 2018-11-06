@@ -94,6 +94,8 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	anyError := make(chan error, 2)
 	conn, err := stan.Connect(mq.clusterID, mq.consumerID+generateID(), stan.NatsURL(mq.natsURL), stan.SetConnectionLostHandler(func(_ stan.Conn, e error) {
 		anyError <- errors.Wrap(e, "nats streaming connection lost")
@@ -115,8 +117,6 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	exiting := make(chan struct{})
-
 	var active sync.WaitGroup
 
 	f := func(msg *stan.Msg) {
@@ -124,7 +124,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		defer active.Done()
 
 		select {
-		case <-exiting:
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -187,9 +187,9 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	select {
 	case <-ctx.Done():
 	case err = <-anyError:
+		cancel()
 	}
 
-	close(exiting)
 	active.Wait() // Wait for all running callbacks to finish
 
 	return err
