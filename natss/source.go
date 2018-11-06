@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -116,15 +115,18 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	var broken int32
+	broken := make(chan struct{})
+
 	var active sync.WaitGroup
 
 	f := func(msg *stan.Msg) {
 		active.Add(1)
 		defer active.Done()
 
-		if atomic.LoadInt32(&broken) != 0 {
+		select {
+		case <-broken:
 			return
+		default:
 		}
 
 		m := pubsub.ConsumerMessage{Data: msg.Data}
@@ -187,8 +189,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case err = <-anyError:
 	}
 
-	atomic.StoreInt32(&broken, 1) // Stop new messages from being processed
-	active.Wait()                 // Wait for all running callbacks to finish
+	close(broken)
+	active.Wait() // Wait for all running callbacks to finish
 
 	return err
 }
