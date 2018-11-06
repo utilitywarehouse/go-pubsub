@@ -40,6 +40,9 @@ func NewMessageSource(
 			panic(err)
 		}
 	}
+	counter.WithLabelValues("error", topic).Add(0)
+	counter.WithLabelValues("success", topic).Add(0)
+
 	return &MessageSource{source, counter, topic}
 }
 
