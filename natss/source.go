@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -117,17 +116,16 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	var active sync.WaitGroup
+	active := make(chan struct{}, 1)
 
 	f := func(msg *stan.Msg) {
-		active.Add(1)
-		defer active.Done()
 
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case active <- struct{}{}:
 		}
+		defer func() { <-active }()
 
 		m := pubsub.ConsumerMessage{Data: msg.Data}
 		err := handler(m)
@@ -190,7 +188,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		cancel()
 	}
 
-	active.Wait() // Wait for all running callbacks to finish
+	active <- struct{}{} // Wait for running callback
 
 	return err
 }
