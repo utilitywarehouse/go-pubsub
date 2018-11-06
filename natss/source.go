@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -69,7 +71,7 @@ const (
 	//OffsetDeliverLast - deliver from the last message
 	OffsetDeliverLast
 
-	//OffsetDeliverAll - deliver all the messages form the begining
+	//OffsetDeliverAll - deliver all the messages form the beginning
 	OffsetDeliverAll
 
 	//OffsetStartDuration - deliver messages from a certain time
@@ -114,19 +116,21 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	broken := false
+	var broken int32
+	var active sync.WaitGroup
 
 	f := func(msg *stan.Msg) {
+		active.Add(1)
+		defer active.Done()
 
-		if broken {
+		if atomic.LoadInt32(&broken) != 0 {
 			return
 		}
 
-		m := pubsub.ConsumerMessage{msg.Data}
+		m := pubsub.ConsumerMessage{Data: msg.Data}
 		err := handler(m)
 		if err != nil {
 			if err := onError(m, err); err != nil {
-				broken = true
 				select {
 				case anyError <- err:
 				default:
@@ -140,7 +144,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		}
 	}
 
-	//defalt to start from first index
+	// default to start from first index
 	startOpt := stan.StartAt(pb.StartPosition_First)
 
 	switch offset := mq.offset; offset {
@@ -182,6 +186,9 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case <-ctx.Done():
 	case err = <-anyError:
 	}
+
+	atomic.StoreInt32(&broken, 1) // Stop new messages from being processed
+	active.Wait()                 // Wait for all running callbacks to finish
 
 	return err
 }
