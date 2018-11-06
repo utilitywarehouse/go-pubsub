@@ -115,7 +115,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	broken := make(chan struct{})
+	exiting := make(chan struct{})
 
 	var active sync.WaitGroup
 
@@ -124,7 +124,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		defer active.Done()
 
 		select {
-		case <-broken:
+		case <-exiting:
 			return
 		default:
 		}
@@ -189,7 +189,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	case err = <-anyError:
 	}
 
-	close(broken)
+	close(exiting)
 	active.Wait() // Wait for all running callbacks to finish
 
 	return err
