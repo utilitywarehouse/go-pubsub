@@ -24,17 +24,11 @@ type ReconnectSink struct {
 // ReconnectionOptions represents the options
 // to configure and hook up to reconnection events
 type ReconnectionOptions struct {
-	Events                 *ReconnectionEvents
 	ReconnectSynchronously bool
-}
-
-// ReconnectionEvents represents the events
-// triggered on determined state of the
-// reconnection
-type ReconnectionEvents struct {
 	OnReconnectFailed  func(err error)
 	OnReconnectSuccess func(sink pubsub.MessageSink, err error)
 }
+
 
 // NewReconnectorSink creates a new reconnector sink
 func NewReconnectorSink(
@@ -77,9 +71,8 @@ func (mq *ReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 			mq.retryStrategy(nil)
 			mq.Unlock()
 			return mq.sink.PutMessage(m)
-		} else {
-			mq.needReconnect <- struct{}{}
 		}
+		mq.needReconnect <- struct{}{}
 	}
 
 	return err
@@ -115,9 +108,9 @@ func (mq *ReconnectSink) Status() (*pubsub.Status, error) {
 			mq.retryStrategy(nil)
 			mq.Unlock()
 			return mq.Status()
-		} else {
-			mq.needReconnect <- struct{}{}
 		}
+
+		mq.needReconnect <- struct{}{}
 	}
 
 	return status, err
@@ -169,15 +162,15 @@ func (mq *ReconnectSink) retryStrategy(reconnected chan struct{}) {
 
 		if err != nil {
 			// Fire OnReconnectFailed if we have a func passed
-			if mq.options.Events != nil && mq.options.Events.OnReconnectFailed != nil {
-				mq.options.Events.OnReconnectFailed(err)
+			if mq.options.OnReconnectFailed != nil {
+				mq.options.OnReconnectFailed(err)
 			}
 		} else {
 			sink, err := mq.setSink(newSink)
 
 			// Fire OnReconnectSuccess if we have a func passed
-			if mq.options.Events != nil && mq.options.Events.OnReconnectSuccess != nil {
-				mq.options.Events.OnReconnectSuccess(sink, err)
+			if mq.options != nil && mq.options.OnReconnectSuccess != nil {
+				mq.options.OnReconnectSuccess(sink, err)
 			}
 
 			if reconnected != nil {
