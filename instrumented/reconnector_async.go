@@ -108,7 +108,10 @@ func (mq *asyncReconnectSink) reconnectIfNeeded() {
 		case <-mq.needReconnect:
 			if reconnecting != true {
 				reconnecting = true
-				go mq.reconnect(reconnected)
+				go func() {
+					mq.reconnect()
+					reconnected <- struct{}{}
+				}()
 			}
 		case <-reconnected:
 			reconnecting = false
@@ -116,7 +119,7 @@ func (mq *asyncReconnectSink) reconnectIfNeeded() {
 	}
 }
 
-func (mq *asyncReconnectSink) reconnect(reconnected chan struct{}) {
+func (mq *asyncReconnectSink) reconnect() {
 	t := time.NewTicker(time.Second * 2)
 	for {
 		<-t.C
@@ -134,10 +137,6 @@ func (mq *asyncReconnectSink) reconnect(reconnected chan struct{}) {
 			// Fire OnReconnectSuccess if we have a func passed
 			if mq.options != nil && mq.options.OnReconnectSuccess != nil {
 				mq.options.OnReconnectSuccess(sink, err)
-			}
-
-			if reconnected != nil {
-				reconnected <- struct{}{}
 			}
 
 			t.Stop()

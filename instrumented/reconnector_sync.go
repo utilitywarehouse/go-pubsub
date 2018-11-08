@@ -47,18 +47,22 @@ func (mq *syncReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 		if err == nil {
 			return nil
 		}
-		mq.reconnectIfNeeded()
+		reconnected := mq.reconnectIfNeeded()
+		if !reconnected {
+			return err
+		}
 	}
 
 }
 
-func (mq *syncReconnectSink) reconnectIfNeeded() {
+func (mq *syncReconnectSink) reconnectIfNeeded() (wasNeeded bool) {
 	status, err := mq.Status()
 	if err == nil && status.Working == true {
 		// already connected
-		return
+		return false
 	}
 	mq.reconnect()
+	return true
 }
 
 // Close decorates the pubsub.MessageSink interface making
