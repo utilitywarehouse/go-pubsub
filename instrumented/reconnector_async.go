@@ -46,10 +46,8 @@ type asyncReconnectSink struct {
 // PutMessage decorates the pubsub.MessageSink interface making
 // aware the sink of disconnection errors
 func (mq *asyncReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
-	mq.RLock()
-	defer mq.RUnlock()
 
-	err := mq.sink.PutMessage(m)
+	err := mq.getSink().PutMessage(m)
 
 	if err != nil {
 		status, errStatus := mq.Status()
@@ -64,18 +62,14 @@ func (mq *asyncReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 // Close decorates the pubsub.MessageSink interface making
 // aware the sink of disconnection errors
 func (mq *asyncReconnectSink) Close() error {
-	mq.RLock()
-	defer mq.RUnlock()
-	return mq.sink.Close()
+	return mq.getSink().Close()
 }
 
 // Status decorates the pubsub.MessageSink interface making
 // aware the sink of disconnection errors
 func (mq *asyncReconnectSink) Status() (*pubsub.Status, error) {
-	mq.RLock()
-	defer mq.RUnlock()
 
-	status, err := mq.sink.Status()
+	status, err := mq.getSink().Status()
 
 	if err != nil {
 		return status, err
@@ -86,6 +80,12 @@ func (mq *asyncReconnectSink) Status() (*pubsub.Status, error) {
 	}
 
 	return status, err
+}
+
+func (mq *asyncReconnectSink) getSink() pubsub.MessageSink {
+	mq.RLock()
+	defer mq.RUnlock()
+	return mq.sink
 }
 
 func (mq *asyncReconnectSink) setSink(s pubsub.MessageSink) (sink pubsub.MessageSink, err error) {
