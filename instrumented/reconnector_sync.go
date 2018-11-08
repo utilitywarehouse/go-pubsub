@@ -50,16 +50,6 @@ func (mq *syncReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 		mq.ensureConnected()
 	}
 
-	err := mq.sink.PutMessage(m)
-
-	if err != nil {
-		status, errStatus := mq.Status()
-		if errStatus == nil && status.Working == true {
-			return mq.PutMessage(m)
-		}
-	}
-
-	return err
 }
 
 func (mq *syncReconnectSink) ensureConnected() {
