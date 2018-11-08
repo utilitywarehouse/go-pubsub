@@ -34,11 +34,12 @@ func newAsyncReconnectorSink(
 // that enhance others sink with retry logic
 // mechanism in case the connection drops
 type asyncReconnectSink struct {
-	sync.RWMutex
 	newSink func() (pubsub.MessageSink, error)
+	options *ReconnectionOptions
 
-	options       *ReconnectionOptions
-	sink          pubsub.MessageSink
+	sync.RWMutex
+	sink pubsub.MessageSink
+
 	needReconnect chan struct{}
 }
 
