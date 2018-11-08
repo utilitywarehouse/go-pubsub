@@ -25,7 +25,7 @@ func newAsyncReconnectorSink(
 		needReconnect: make(chan struct{}),
 	}
 
-	go rs.reconnect()
+	go rs.reconnectIfNeeded()
 
 	return rs, nil
 }
@@ -98,7 +98,7 @@ func (mq *asyncReconnectSink) setSink(s pubsub.MessageSink) (sink pubsub.Message
 	return s, err
 }
 
-func (mq *asyncReconnectSink) reconnect() {
+func (mq *asyncReconnectSink) reconnectIfNeeded() {
 
 	reconnecting := false
 	reconnected := make(chan struct{})
@@ -108,7 +108,7 @@ func (mq *asyncReconnectSink) reconnect() {
 		case <-mq.needReconnect:
 			if reconnecting != true {
 				reconnecting = true
-				go mq.retryStrategy(reconnected)
+				go mq.reconnect(reconnected)
 			}
 		case <-reconnected:
 			reconnecting = false
@@ -116,7 +116,7 @@ func (mq *asyncReconnectSink) reconnect() {
 	}
 }
 
-func (mq *asyncReconnectSink) retryStrategy(reconnected chan struct{}) {
+func (mq *asyncReconnectSink) reconnect(reconnected chan struct{}) {
 	t := time.NewTicker(time.Second * 2)
 	for {
 		<-t.C
