@@ -27,6 +27,18 @@ type connectionState struct {
 // has established that the connection to the nats streaming server has been lost
 var ErrConnLost = errors.New("nats streaming connection lost")
 
+type retryableNatsError struct {
+	errString string
+}
+
+func (e *retryableNatsError) Error() string {
+	return e.errString
+}
+
+func (e *retryableNatsError) Retryable() bool {
+	return true
+}
+
 type messageSink struct {
 	topic string
 	sc    stan.Conn // nats streaming
