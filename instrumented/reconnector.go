@@ -14,7 +14,6 @@ var _ pubsub.MessageSink = (*ReconnectSink)(nil)
 type ReconnectSink struct {
 	sync.RWMutex
 	newSink     func() (pubsub.MessageSink, error)
-	errConnLost error
 
 	options       *ReconnectionOptions
 	sink          pubsub.MessageSink
@@ -29,10 +28,8 @@ type ReconnectionOptions struct {
 	OnReconnectSuccess func(sink pubsub.MessageSink, err error)
 }
 
-
 // NewReconnectorSink creates a new reconnector sink
 func NewReconnectorSink(
-	errConnLost error,
 	newSink func() (pubsub.MessageSink, error),
 	options *ReconnectionOptions,
 ) (pubsub.MessageSink, error) {
@@ -44,7 +41,6 @@ func NewReconnectorSink(
 
 	reconnectSink := &ReconnectSink{
 		newSink:       newSink,
-		errConnLost:   errConnLost,
 		options:       options,
 		sink:          pubSubSink,
 		needReconnect: make(chan struct{}),
@@ -65,14 +61,11 @@ func (mq *ReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 
 	err := mq.sink.PutMessage(m)
 
-	if err != nil && err == mq.errConnLost {
-		if mq.options.ReconnectSynchronously == true {
-			mq.Lock()
-			mq.retryStrategy(nil)
-			mq.Unlock()
-			return mq.sink.PutMessage(m)
+	if err != nil {
+		status, errStatus := mq.Status()
+		if errStatus == nil && status.Working == true {
+			return mq.PutMessage(m)
 		}
-		mq.needReconnect <- struct{}{}
 	}
 
 	return err
