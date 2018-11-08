@@ -31,11 +31,11 @@ func newSyncReconnectorSink(
 // that enhance others sink with retry logic
 // mechanism in case the connection drops
 type syncReconnectSink struct {
-	sync.RWMutex
 	newSink func() (pubsub.MessageSink, error)
-
 	options *ReconnectionOptions
-	sink    pubsub.MessageSink
+
+	sync.RWMutex
+	sink pubsub.MessageSink
 }
 
 // PutMessage decorates the pubsub.MessageSink interface making
@@ -43,7 +43,7 @@ type syncReconnectSink struct {
 func (mq *syncReconnectSink) PutMessage(m pubsub.ProducerMessage) error {
 
 	for {
-		err := mq.sink.PutMessage(m)
+		err := mq.getSink().PutMessage(m)
 		if err == nil {
 			return nil
 		}
@@ -64,16 +64,25 @@ func (mq *syncReconnectSink) ensureConnected() {
 // Close decorates the pubsub.MessageSink interface making
 // aware the sink of disconnection errors
 func (mq *syncReconnectSink) Close() error {
-	return mq.sink.Close()
+	return mq.getSink().Close()
 }
 
 // Status decorates the pubsub.MessageSink interface making
 // aware the sink of disconnection errors
 func (mq *syncReconnectSink) Status() (*pubsub.Status, error) {
-	return mq.sink.Status()
+	return mq.getSink().Status()
+}
+
+func (mq *syncReconnectSink) getSink() pubsub.MessageSink {
+	mq.RLock()
+	defer mq.RUnlock()
+	return mq.sink
 }
 
 func (mq *syncReconnectSink) setSink(s pubsub.MessageSink) (sink pubsub.MessageSink, err error) {
+	mq.Lock()
+	defer mq.Unlock()
+
 	if mq.sink != nil {
 		err = mq.sink.Close()
 	}
