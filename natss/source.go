@@ -69,7 +69,7 @@ const (
 	//OffsetDeliverLast - deliver from the last message
 	OffsetDeliverLast
 
-	//OffsetDeliverAll - deliver all the messages form the begining
+	//OffsetDeliverAll - deliver all the messages form the beginning
 	OffsetDeliverAll
 
 	//OffsetStartDuration - deliver messages from a certain time
@@ -93,6 +93,8 @@ func NewMessageSource(conf MessageSourceConfig) (pubsub.MessageSource, error) {
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	anyError := make(chan error, 2)
 	conn, err := stan.Connect(mq.clusterID, mq.consumerID+generateID(), stan.NatsURL(mq.natsURL), stan.SetConnectionLostHandler(func(_ stan.Conn, e error) {
 		anyError <- errors.Wrap(e, "nats streaming connection lost")
@@ -114,19 +116,21 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 
 	natsConn.SetDisconnectHandler(closedHandler)
 
-	broken := false
+	active := make(chan struct{}, 1)
 
 	f := func(msg *stan.Msg) {
 
-		if broken {
+		select {
+		case <-ctx.Done():
 			return
+		case active <- struct{}{}:
 		}
+		defer func() { <-active }()
 
-		m := pubsub.ConsumerMessage{msg.Data}
+		m := pubsub.ConsumerMessage{Data: msg.Data}
 		err := handler(m)
 		if err != nil {
 			if err := onError(m, err); err != nil {
-				broken = true
 				select {
 				case anyError <- err:
 				default:
@@ -140,7 +144,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		}
 	}
 
-	//defalt to start from first index
+	// default to start from first index
 	startOpt := stan.StartAt(pb.StartPosition_First)
 
 	switch offset := mq.offset; offset {
@@ -181,7 +185,10 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	select {
 	case <-ctx.Done():
 	case err = <-anyError:
+		cancel()
 	}
+
+	active <- struct{}{} // Wait for running callback
 
 	return err
 }
