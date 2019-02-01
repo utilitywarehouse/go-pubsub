@@ -55,6 +55,7 @@ func (ims *ConcurrentMessageSource) ConsumeMessages(
 	return ims.impl.ConsumeMessages(ctx, instrumentedHandler, onError)
 }
 
+// ConsumeMessagesConcurrentlyByPartition is an implementation of interface method, wrapping the call in instrumentation
 func (ims *ConcurrentMessageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 	instrumentedHandler := newMsgHandler(handler, ims.counter, ims.topic)
 	return ims.impl.ConsumeMessagesConcurrentlyByPartition(ctx, instrumentedHandler, onError)
