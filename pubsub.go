@@ -34,6 +34,11 @@ type MessageSource interface {
 	Statuser
 }
 
+type ConcurrentMessageSource interface {
+	MessageSource
+	ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
+}
+
 // Statuser is the interface that wraps the Status method.
 type Statuser interface {
 	Status() (*Status, error)

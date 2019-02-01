@@ -42,6 +42,7 @@ func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
 	if config.Offset != 0 {
 		offset = config.Offset
 	}
+
 	mrf := defaultMetadataRefreshFrequency
 	if config.MetadataRefreshFrequency > 0 {
 		mrf = config.MetadataRefreshFrequency
@@ -94,17 +95,18 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		case err := <-c.Errors():
 			return err
 		case <-ctx.Done():
-			return c.Close()
+			return nil
 		}
 	}
 }
 
-func (mq *messageSource) ConsumeMessagesParallelly(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+func (mq *messageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 	config := cluster.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
 	config.Consumer.Offsets.Retention = mq.offsetsRetention
+	config.Group.Mode = cluster.ConsumerModePartitions
 
 	if mq.Version != nil {
 		config.Version = *mq.Version
@@ -115,37 +117,42 @@ func (mq *messageSource) ConsumeMessagesParallelly(ctx context.Context, handler 
 		return err
 	}
 
+	errs := make(chan error, 1)
 	defer func() {
 		_ = c.Close()
 	}()
 
-	errors := make(chan error, 1)
-
-	defer func() {
-		close(errors)
-	}()
-
 	for {
 		select {
-		case m := <-c.Messages():
-			go func(msg *sarama.ConsumerMessage) {
-				message := pubsub.ConsumerMessage{Data: msg.Value}
-				err := handler(message)
-				if err != nil {
-					err = onError(message, err)
-					if err != nil {
-						errors <- err
+		case part, ok := <-c.Partitions():
+			if !ok {
+				return nil
+			}
+			go func(pc cluster.PartitionConsumer, errChan chan <-error) {
+				for {
+					select {
+					case msg := <- pc.Messages():
+						message := pubsub.ConsumerMessage{Data: msg.Value}
+						err := handler(message)
+						if err != nil {
+							err = onError(message, err)
+							if err != nil {
+								errChan <- err
+								return
+							}
+						}
+						c.MarkOffset(msg, "")
+					case err := <- pc.Errors():
+						errChan <- err
+					case <- ctx.Done():
+						return
 					}
 				}
-
-				c.MarkOffset(msg, "")
-			}(m)
-		case err := <-c.Errors():
+			}(part, errs)
+		case err := <- errs:
 			return err
-		case err := <-errors:
-			return err
-		case <-ctx.Done():
-			return c.Close()
+		case <- ctx.Done():
+			return nil
 		}
 	}
 }
