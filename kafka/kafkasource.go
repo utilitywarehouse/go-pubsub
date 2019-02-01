@@ -99,6 +99,57 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 }
 
+func (mq *messageSource) ConsumeMessagesParallelly(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+	config := cluster.NewConfig()
+	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.Initial = mq.offset
+	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
+	config.Consumer.Offsets.Retention = mq.offsetsRetention
+
+	if mq.Version != nil {
+		config.Version = *mq.Version
+	}
+
+	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = c.Close()
+	}()
+
+	errors := make(chan error, 1)
+
+	defer func() {
+		close(errors)
+	}()
+
+	for {
+		select {
+		case m := <-c.Messages():
+			go func(msg *sarama.ConsumerMessage) {
+				message := pubsub.ConsumerMessage{Data: msg.Value}
+				err := handler(message)
+				if err != nil {
+					err = onError(message, err)
+					if err != nil {
+						errors <- err
+					}
+				}
+
+				c.MarkOffset(msg, "")
+			}(m)
+		case err := <-c.Errors():
+			return err
+		case err := <-errors:
+			return err
+		case <-ctx.Done():
+			return c.Close()
+		}
+	}
+}
+
 // Status reports the status of the message source
 func (mq *messageSource) Status() (*pubsub.Status, error) {
 	return status(mq.brokers, mq.topic)
