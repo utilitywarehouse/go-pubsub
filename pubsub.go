@@ -33,7 +33,7 @@ type MessageSource interface {
 	ConsumeMessages(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
 	Statuser
 }
-
+// ConcurrentMessageSource concurrent message consumer
 type ConcurrentMessageSource interface {
 	MessageSource
 	ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error

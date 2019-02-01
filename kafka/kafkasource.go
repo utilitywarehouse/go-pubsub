@@ -100,6 +100,8 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 }
 
+// ConsumeMessagesConcurrentlyByPartition consumes messages from each partition available in separate
+// routines to achieve concurrent message processing
 func (mq *messageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 	config := cluster.NewConfig()
 	config.Consumer.Return.Errors = true
