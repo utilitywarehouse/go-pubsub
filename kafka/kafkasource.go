@@ -37,7 +37,7 @@ type MessageSourceConfig struct {
 	Version                  *sarama.KafkaVersion
 }
 
-func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
+func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource {
 	offset := OffsetLatest
 	if config.Offset != 0 {
 		offset = config.Offset
