@@ -36,7 +36,7 @@ type MessageSourceConfig struct {
 	OffsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
 }
-
+// NewMessageSource provides a new kafka message source
 func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource {
 	offset := OffsetLatest
 	if config.Offset != 0 {
