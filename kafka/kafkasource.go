@@ -7,6 +7,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
@@ -119,10 +120,11 @@ func (mq *messageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Cont
 		return err
 	}
 
-	errs := make(chan error, 1)
 	defer func() {
 		_ = c.Close()
 	}()
+
+	pGroup, pContext := errgroup.WithContext(ctx)
 
 	for {
 		select {
@@ -130,31 +132,42 @@ func (mq *messageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Cont
 			if !ok {
 				return nil
 			}
-			go func(pc cluster.PartitionConsumer, errChan chan <-error) {
-				for {
-					select {
-					case msg := <- pc.Messages():
-						message := pubsub.ConsumerMessage{Data: msg.Value}
-						err := handler(message)
-						if err != nil {
-							err = onError(message, err)
-							if err != nil {
-								errChan <- err
-								return
-							}
-						}
-						c.MarkOffset(msg, "")
-					case err := <- pc.Errors():
-						errChan <- err
-					case <- ctx.Done():
-						return
-					}
-				}
-			}(part, errs)
-		case err := <- errs:
+			pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
+		case err := <-c.Errors():
+			pGroup.Wait()
 			return err
 		case <- ctx.Done():
-			return nil
+			return pGroup.Wait()
+		case <- pContext.Done():
+			return pGroup.Wait()
+		}
+	}
+}
+
+func newConcurrentMessageHandler(ctx context.Context,
+		consumer *cluster.Consumer,
+		part cluster.PartitionConsumer,
+		handler pubsub.ConsumerMessageHandler,
+		onError pubsub.ConsumerErrorHandler) func() error {
+
+	return func() error {
+		for {
+			select {
+			case msg := <- part.Messages():
+				message := pubsub.ConsumerMessage{Data: msg.Value}
+				err := handler(message)
+				if err != nil {
+					err = onError(message, err)
+					if err != nil {
+						return err
+					}
+				}
+				consumer.MarkOffset(msg, "")
+			case err := <- part.Errors():
+				return err
+			case <- ctx.Done():
+				return nil
+			}
 		}
 	}
 }
