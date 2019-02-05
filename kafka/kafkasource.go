@@ -7,6 +7,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
@@ -36,12 +37,13 @@ type MessageSourceConfig struct {
 	OffsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
 }
-
-func NewMessageSource(config MessageSourceConfig) pubsub.MessageSource {
+// NewMessageSource provides a new kafka message source
+func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource {
 	offset := OffsetLatest
 	if config.Offset != 0 {
 		offset = config.Offset
 	}
+
 	mrf := defaultMetadataRefreshFrequency
 	if config.MetadataRefreshFrequency > 0 {
 		mrf = config.MetadataRefreshFrequency
@@ -94,7 +96,79 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		case err := <-c.Errors():
 			return err
 		case <-ctx.Done():
-			return c.Close()
+			return nil
+		}
+	}
+}
+
+// ConsumeMessagesConcurrently consumes messages concurrently through the use of separate go-routines
+// in the context of Kafka this is done by providing a new routine by partition made available to
+// the application by kafka at runtime
+func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+	config := cluster.NewConfig()
+	config.Consumer.Return.Errors = true
+	config.Consumer.Offsets.Initial = mq.offset
+	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
+	config.Consumer.Offsets.Retention = mq.offsetsRetention
+	config.Group.Mode = cluster.ConsumerModePartitions
+
+	if mq.Version != nil {
+		config.Version = *mq.Version
+	}
+
+	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = c.Close()
+	}()
+
+	pGroup, pContext := errgroup.WithContext(ctx)
+
+	for {
+		select {
+		case part, ok := <-c.Partitions():
+			if !ok {
+				return nil
+			}
+			pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
+		case err := <-c.Errors():
+			pGroup.Wait()
+			return err
+		case <- ctx.Done():
+			return pGroup.Wait()
+		case <- pContext.Done():
+			return pGroup.Wait()
+		}
+	}
+}
+
+func newConcurrentMessageHandler(ctx context.Context,
+		consumer *cluster.Consumer,
+		part cluster.PartitionConsumer,
+		handler pubsub.ConsumerMessageHandler,
+		onError pubsub.ConsumerErrorHandler) func() error {
+
+	return func() error {
+		for {
+			select {
+			case msg := <- part.Messages():
+				message := pubsub.ConsumerMessage{Data: msg.Value}
+				err := handler(message)
+				if err != nil {
+					err = onError(message, err)
+					if err != nil {
+						return err
+					}
+				}
+				consumer.MarkOffset(msg, "")
+			case err := <- part.Errors():
+				return err
+			case <- ctx.Done():
+				return nil
+			}
 		}
 	}
 }
