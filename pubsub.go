@@ -36,7 +36,10 @@ type MessageSource interface {
 // ConcurrentMessageSource concurrent message consumer
 type ConcurrentMessageSource interface {
 	MessageSource
-	ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
+	// ConsumeMessagesConcurrently provides similar functionality to ConsumeMessages but utilises
+	// multiple routines to achieve concurrency, the exact amount of routines that will
+	// be created depends on the underlying technology
+	ConsumeMessagesConcurrently(ctx context.Context, handler ConsumerMessageHandler, onError ConsumerErrorHandler) error
 }
 
 // Statuser is the interface that wraps the Status method.

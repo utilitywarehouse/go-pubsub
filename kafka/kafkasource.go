@@ -101,9 +101,10 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	}
 }
 
-// ConsumeMessagesConcurrentlyByPartition consumes messages from each partition available in separate
-// routines to achieve concurrent message processing
-func (mq *messageSource) ConsumeMessagesConcurrentlyByPartition(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
+// ConsumeMessagesConcurrently consumes messages concurrently through the use of separate go-routines
+// in the context of Kafka this is done by providing a new routine by partition made available to
+// the application by kafka at runtime
+func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
 	config := cluster.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
