@@ -155,6 +155,9 @@ func newConcurrentMessageHandler(ctx context.Context,
 		for {
 			select {
 			case msg := <- part.Messages():
+				if msg == nil {
+					continue
+				}
 				message := pubsub.ConsumerMessage{Data: msg.Value}
 				err := handler(message)
 				if err != nil {
