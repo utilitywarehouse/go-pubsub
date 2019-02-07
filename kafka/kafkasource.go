@@ -37,6 +37,7 @@ type MessageSourceConfig struct {
 	OffsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
 }
+
 // NewMessageSource provides a new kafka message source
 func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource {
 	offset := OffsetLatest
@@ -139,41 +140,66 @@ func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handle
 				pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
 			}
 		case err := <-c.Errors():
+
+			if err == nil {
+				// our parent chanel was possibly closed due to context cancel, in which case
+				// we have stopped consuming but should wait for any errors returned from
+				// subroutines
+				return pGroup.Wait()
+			}
+			// tell the errgroup to cancel all running subroutines, were ignoring any other errors
+			// // at this point
 			pGroup.Wait()
+			// return the original consumer error
 			return err
-		case <- ctx.Done():
+		case <-ctx.Done():
+			// main context was cancelled, our errgroup will also be cancelled so we should
+			// gracefully wait until subroutines finish just in case one returns an error
 			return pGroup.Wait()
-		case <- pContext.Done():
+		case <-pContext.Done():
+			// gracefully wait for any error
 			return pGroup.Wait()
 		}
 	}
 }
 
-func newConcurrentMessageHandler(ctx context.Context,
-		consumer *cluster.Consumer,
-		part cluster.PartitionConsumer,
-		handler pubsub.ConsumerMessageHandler,
-		onError pubsub.ConsumerErrorHandler) func() error {
+func newConcurrentMessageHandler(
+	ctx context.Context,
+	consumer *cluster.Consumer,
+	part cluster.PartitionConsumer,
+	handler pubsub.ConsumerMessageHandler,
+	onError pubsub.ConsumerErrorHandler) func() error {
 
 	return func() error {
 		for {
 			select {
-			case msg := <- part.Messages():
-				if msg == nil {
-					continue
+			case msg, ok := <-part.Messages():
+				if !ok {
+					// message channel closed so bail cleanly
+					return nil
 				}
 				message := pubsub.ConsumerMessage{Data: msg.Value}
 				err := handler(message)
 				if err != nil {
 					err = onError(message, err)
 					if err != nil {
+						// this error will trigger the errgroup to cancel its context, this will trigger
+						// a graceful shutdown of the consumer bubbling the error back up to the
+						// main partition loop
 						return err
 					}
 				}
 				consumer.MarkOffset(msg, "")
-			case err := <- part.Errors():
+			case err, ok := <-part.Errors():
+				if !ok {
+					// error chanel closed so bail cleanly. If we don't do this we will kill the
+					// consumer every time there is a consumer rebalance
+					return nil
+				}
 				return err
-			case <- ctx.Done():
+			case <-ctx.Done():
+				// another routine has encountered an error, we should really stop
+				// processing any other partitions
 				return nil
 			}
 		}
