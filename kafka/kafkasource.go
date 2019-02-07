@@ -130,10 +130,14 @@ func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handle
 	for {
 		select {
 		case part, ok := <-c.Partitions():
-			if !ok {
-				return nil
+			// partitions will emit a nil pointer (part) when the parent channel is tombed as
+			// the client is closed. ok will be false when the partitions channel is closed
+			// in both cases we want to wait for the errgroup to handle any errors correctly and
+			// gracefully close the subroutines. If either the part is nil or ok is false then
+			// we simply ignore it to give the errgroup and subroutines time to finish
+			if ok && part != nil {
+				pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
 			}
-			pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
 		case err := <-c.Errors():
 			pGroup.Wait()
 			return err
