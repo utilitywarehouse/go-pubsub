@@ -133,7 +133,11 @@ func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handle
 			if !ok {
 				return nil
 			}
-			pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
+			if part != nil {
+				// partitions will emit a nil pointer when the parent chanel is tombed  as
+				// the client is closed
+				pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
+			}
 		case err := <-c.Errors():
 			pGroup.Wait()
 			return err
