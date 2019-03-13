@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/utilitywarehouse/go-pubsub"
-	"github.com/uw-labs/proximo/proximoc-go"
+	"github.com/utilitywarehouse/go-pubsub/proximo/internal/proximoc"
 )
 
 var _ pubsub.MessageSink = (*messageSink)(nil)
