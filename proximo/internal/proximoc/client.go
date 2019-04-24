@@ -285,7 +285,7 @@ func makeId() string {
 	return base64.URLEncoding.EncodeToString(random)
 }
 
-// GrpcClient returns grpc client connection
-func (p *ProducerConn) GrpcClient() *grpc.ClientConn {
+// GRPCClient returns grpc client connection
+func (p *ProducerConn) GRPCClient() *grpc.ClientConn {
 	return p.cc
 }

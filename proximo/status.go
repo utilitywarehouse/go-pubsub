@@ -16,8 +16,10 @@ func sinkStatus(cc *grpc.ClientConn) (*pubsub.Status, error) {
 		return nil, ErrNotConnected
 	}
 
-	var working bool
-	var problems []string
+	var (
+		working  bool
+		problems []string
+	)
 	switch cc.GetState() {
 	case connectivity.Ready,
 		connectivity.Idle:
