@@ -66,5 +66,5 @@ func (mq *messageSink) Close() error {
 
 // Status reports the status of the message sink
 func (mq *messageSink) Status() (*pubsub.Status, error) {
-	return nil, errors.New("status is not implemented")
+	return sinkStatus(mq.producer.GrpcClient())
 }
