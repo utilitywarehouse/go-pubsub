@@ -6,11 +6,10 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/stan.go"
+	"github.com/nats-io/stan.go/pb"
 	"github.com/pkg/errors"
-
-	nats "github.com/nats-io/go-nats"
-	"github.com/nats-io/go-nats-streaming"
-	"github.com/nats-io/go-nats-streaming/pb"
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
