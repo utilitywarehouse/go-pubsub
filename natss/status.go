@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	nats "github.com/nats-io/go-nats"
+	"github.com/nats-io/nats.go"
 	pubsub "github.com/utilitywarehouse/go-pubsub"
 )
 
