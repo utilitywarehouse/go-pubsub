@@ -3,9 +3,8 @@ package natss
 import (
 	"sync"
 
+	"github.com/nats-io/stan.go"
 	"github.com/pkg/errors"
-
-	"github.com/nats-io/go-nats-streaming"
 	"github.com/utilitywarehouse/go-pubsub"
 )
 
