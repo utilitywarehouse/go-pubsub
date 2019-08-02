@@ -2,12 +2,11 @@ package kafka
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/bsm/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
-	"golang.org/x/sync/errgroup"
 )
 
 var _ pubsub.MessageSource = (*messageSource)(nil)
@@ -38,6 +37,62 @@ type MessageSourceConfig struct {
 	Version                  *sarama.KafkaVersion
 }
 
+// lockingConsumerGroupHandler is a handler which uses locks to make consumption serial
+// sarama will make multiple concurrent calls to ConsumeClaim (a single concurrent call per claim)
+type lockingConsumerGroupHandler struct {
+	ctx     context.Context
+	m       sync.Mutex
+	handler pubsub.ConsumerMessageHandler
+	onError pubsub.ConsumerErrorHandler
+	errChan <-chan error
+}
+
+// Setup creates consumer group session
+func (h *lockingConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
+
+// Cleanup cleans up the consumer group session
+func (h *lockingConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+
+// ConsumeClaim consumes a "claim" (kafka partition)
+func (h *lockingConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for {
+		select {
+		case msg, ok := <-claim.Messages():
+			if !ok {
+				// message channel closed so bail cleanly
+				return nil
+			}
+
+			h.m.Lock()
+
+			message := pubsub.ConsumerMessage{Data: msg.Value}
+			err := h.handler(message)
+			if err != nil {
+				err = h.onError(message, err)
+				if err != nil {
+					h.m.Unlock()
+					return err
+				}
+			}
+
+			sess.MarkMessage(msg, "")
+			h.m.Unlock()
+		case err, ok := <-h.errChan:
+			if !ok {
+				// error chanel closed so bail cleanly. If we don't do this we will kill the
+				// consumer every time there is a consumer rebalance
+				return nil
+			}
+			return err
+
+		case <-h.ctx.Done():
+			return nil
+		}
+	}
+
+	return nil
+}
+
 // NewMessageSource provides a new kafka message source
 func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource {
 	offset := OffsetLatest
@@ -62,7 +117,7 @@ func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource
 }
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-	config := cluster.NewConfig()
+	config := sarama.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
@@ -72,7 +127,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		config.Version = *mq.Version
 	}
 
-	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
+	c, err := sarama.NewConsumerGroup(mq.brokers, mq.consumergroup, config)
 	if err != nil {
 		return err
 	}
@@ -81,43 +136,87 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 		_ = c.Close()
 	}()
 
+	h := &lockingConsumerGroupHandler{
+		ctx:     ctx,
+		handler: handler,
+		onError: onError,
+		errChan: c.Errors(),
+	}
+
+	err = c.Consume(ctx, []string{mq.topic}, h)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// consumerGroupHandler is a handle which uses locks to make consumption serial
+// sarama will make multiple concurrent calls to ConsumeClaim
+type consumerGroupHandler struct {
+	ctx     context.Context
+	handler pubsub.ConsumerMessageHandler
+	onError pubsub.ConsumerErrorHandler
+	errChan <-chan error
+}
+
+// Setup creates consumer group session
+func (h *consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
+
+// Cleanup cleans up the consumer group session
+func (h *consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+
+// ConsumeClaim calls out to pubsub handler
+func (h *consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
-		case msg := <-c.Messages():
+		case msg, ok := <-claim.Messages():
+			if !ok {
+				// message channel closed so bail cleanly
+				return nil
+			}
+
 			message := pubsub.ConsumerMessage{Data: msg.Value}
-			err := handler(message)
+			err := h.handler(message)
 			if err != nil {
-				err = onError(message, err)
+				err = h.onError(message, err)
 				if err != nil {
 					return err
 				}
 			}
+			sess.MarkMessage(msg, "")
 
-			c.MarkOffset(msg, "")
-		case err := <-c.Errors():
+		case err, ok := <-h.errChan:
+			if !ok {
+				// error chanel closed so bail cleanly. If we don't do this we will kill the
+				// consumer every time there is a consumer rebalance
+				return nil
+			}
 			return err
-		case <-ctx.Done():
+
+		case <-h.ctx.Done():
 			return nil
 		}
 	}
+
+	return nil
 }
 
 // ConsumeMessagesConcurrently consumes messages concurrently through the use of separate go-routines
 // in the context of Kafka this is done by providing a new routine by partition made available to
 // the application by kafka at runtime
 func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-	config := cluster.NewConfig()
+	config := sarama.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
 	config.Consumer.Offsets.Retention = mq.offsetsRetention
-	config.Group.Mode = cluster.ConsumerModePartitions
 
 	if mq.Version != nil {
 		config.Version = *mq.Version
 	}
 
-	c, err := cluster.NewConsumer(mq.brokers, mq.consumergroup, []string{mq.topic}, config)
+	c, err := sarama.NewConsumerGroup(mq.brokers, mq.consumergroup, config)
 	if err != nil {
 		return err
 	}
@@ -126,84 +225,19 @@ func (mq *messageSource) ConsumeMessagesConcurrently(ctx context.Context, handle
 		_ = c.Close()
 	}()
 
-	pGroup, pContext := errgroup.WithContext(ctx)
-
-	for {
-		select {
-		case part, ok := <-c.Partitions():
-			// partitions will emit a nil pointer (part) when the parent channel is tombed as
-			// the client is closed. ok will be false when the partitions channel is closed
-			// in both cases we want to wait for the errgroup to handle any errors correctly and
-			// gracefully close the subroutines. If either the part is nil or ok is false then
-			// we simply ignore it to give the errgroup and subroutines time to finish
-			if ok && part != nil {
-				pGroup.Go(newConcurrentMessageHandler(pContext, c, part, handler, onError))
-			}
-		case err := <-c.Errors():
-
-			if err == nil {
-				// our parent chanel was possibly closed due to context cancel, in which case
-				// we have stopped consuming but should wait for any errors returned from
-				// subroutines
-				return pGroup.Wait()
-			}
-			// tell the errgroup to cancel all running subroutines, were ignoring any other errors
-			// // at this point
-			pGroup.Wait()
-			// return the original consumer error
-			return err
-		case <-ctx.Done():
-			// main context was cancelled, our errgroup will also be cancelled so we should
-			// gracefully wait until subroutines finish just in case one returns an error
-			return pGroup.Wait()
-		case <-pContext.Done():
-			// gracefully wait for any error
-			return pGroup.Wait()
-		}
+	h := &consumerGroupHandler{
+		ctx:     ctx,
+		handler: handler,
+		onError: onError,
+		errChan: c.Errors(),
 	}
-}
 
-func newConcurrentMessageHandler(
-	ctx context.Context,
-	consumer *cluster.Consumer,
-	part cluster.PartitionConsumer,
-	handler pubsub.ConsumerMessageHandler,
-	onError pubsub.ConsumerErrorHandler) func() error {
-
-	return func() error {
-		for {
-			select {
-			case msg, ok := <-part.Messages():
-				if !ok {
-					// message channel closed so bail cleanly
-					return nil
-				}
-				message := pubsub.ConsumerMessage{Data: msg.Value}
-				err := handler(message)
-				if err != nil {
-					err = onError(message, err)
-					if err != nil {
-						// this error will trigger the errgroup to cancel its context, this will trigger
-						// a graceful shutdown of the consumer bubbling the error back up to the
-						// main partition loop
-						return err
-					}
-				}
-				consumer.MarkOffset(msg, "")
-			case err, ok := <-part.Errors():
-				if !ok {
-					// error chanel closed so bail cleanly. If we don't do this we will kill the
-					// consumer every time there is a consumer rebalance
-					return nil
-				}
-				return err
-			case <-ctx.Done():
-				// another routine has encountered an error, we should really stop
-				// processing any other partitions
-				return nil
-			}
-		}
+	err = c.Consume(ctx, []string{mq.topic}, h)
+	if err != nil {
+		return err
 	}
+
+	return nil
 }
 
 // Status reports the status of the message source
