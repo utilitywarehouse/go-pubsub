@@ -25,7 +25,6 @@ type messageSource struct {
 	metadataRefreshFrequency time.Duration
 	offsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
-	lock *sync.Mutex
 }
 
 type MessageSourceConfig struct {
@@ -36,62 +35,6 @@ type MessageSourceConfig struct {
 	MetadataRefreshFrequency time.Duration
 	OffsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
-}
-
-// lockingConsumerGroupHandler is a handler which uses locks to make consumption serial
-// sarama will make multiple concurrent calls to ConsumeClaim (a single concurrent call per claim)
-type lockingConsumerGroupHandler struct {
-	ctx     context.Context
-	m       sync.Mutex
-	handler pubsub.ConsumerMessageHandler
-	onError pubsub.ConsumerErrorHandler
-	errChan <-chan error
-}
-
-// Setup creates consumer group session
-func (h *lockingConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error { return nil }
-
-// Cleanup cleans up the consumer group session
-func (h *lockingConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
-
-// ConsumeClaim consumes a "claim" (kafka partition)
-func (h *lockingConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for {
-		select {
-		case msg, ok := <-claim.Messages():
-			if !ok {
-				// message channel closed so bail cleanly
-				return nil
-			}
-
-			h.m.Lock()
-
-			message := pubsub.ConsumerMessage{Data: msg.Value}
-			err := h.handler(message)
-			if err != nil {
-				err = h.onError(message, err)
-				if err != nil {
-					h.m.Unlock()
-					return err
-				}
-			}
-
-			sess.MarkMessage(msg, "")
-			h.m.Unlock()
-		case err, ok := <-h.errChan:
-			if !ok {
-				// error chanel closed so bail cleanly. If we don't do this we will kill the
-				// consumer every time there is a consumer rebalance
-				return nil
-			}
-			return err
-
-		case <-h.ctx.Done():
-			return nil
-		}
-	}
-
-	return nil
 }
 
 // NewMessageSource provides a new kafka message source
@@ -114,7 +57,6 @@ func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource
 		offsetsRetention:         config.OffsetsRetention,
 		metadataRefreshFrequency: mrf,
 		Version:                  config.Version,
-		lock: &sync.Mutex{},
 	}
 }
 
@@ -123,11 +65,12 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	return mq.ConsumeMessagesConcurrently(ctx, func(message pubsub.ConsumerMessage) error {
 		lock.Lock()
 		defer lock.Unlock()
+
 		return handler(message)
 	}, onError)
 }
 
-// consumerGroupHandler is a handle which uses locks to make consumption serial
+// consumerGroupHandler is a handler wrapper for Sarama ConsumerGroupAPI
 // sarama will make multiple concurrent calls to ConsumeClaim
 type consumerGroupHandler struct {
 	ctx     context.Context
@@ -164,7 +107,7 @@ func (h *consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cl
 
 		case err, ok := <-h.errChan:
 			if !ok {
-				// error chanel closed so bail cleanly. If we don't do this we will kill the
+				// error channel closed so bail cleanly. If we don't do this we will kill the
 				// consumer every time there is a consumer rebalance
 				return nil
 			}
@@ -174,8 +117,6 @@ func (h *consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cl
 			return nil
 		}
 	}
-
-	return nil
 }
 
 // ConsumeMessagesConcurrently consumes messages concurrently through the use of separate go-routines
