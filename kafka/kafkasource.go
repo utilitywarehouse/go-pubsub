@@ -25,6 +25,7 @@ type messageSource struct {
 	metadataRefreshFrequency time.Duration
 	offsetsRetention         time.Duration
 	Version                  *sarama.KafkaVersion
+	lock *sync.Mutex
 }
 
 type MessageSourceConfig struct {
@@ -113,42 +114,17 @@ func NewMessageSource(config MessageSourceConfig) pubsub.ConcurrentMessageSource
 		offsetsRetention:         config.OffsetsRetention,
 		metadataRefreshFrequency: mrf,
 		Version:                  config.Version,
+		lock: &sync.Mutex{},
 	}
 }
 
 func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.ConsumerMessageHandler, onError pubsub.ConsumerErrorHandler) error {
-	config := sarama.NewConfig()
-	config.Consumer.Return.Errors = true
-	config.Consumer.Offsets.Initial = mq.offset
-	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
-	config.Consumer.Offsets.Retention = mq.offsetsRetention
-
-	if mq.Version != nil {
-		config.Version = *mq.Version
-	}
-
-	c, err := sarama.NewConsumerGroup(mq.brokers, mq.consumergroup, config)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = c.Close()
-	}()
-
-	h := &lockingConsumerGroupHandler{
-		ctx:     ctx,
-		handler: handler,
-		onError: onError,
-		errChan: c.Errors(),
-	}
-
-	err = c.Consume(ctx, []string{mq.topic}, h)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	lock := &sync.Mutex{}
+	return mq.ConsumeMessagesConcurrently(ctx, func(message pubsub.ConsumerMessage) error {
+		lock.Lock()
+		defer lock.Unlock()
+		return handler(message)
+	}, onError)
 }
 
 // consumerGroupHandler is a handle which uses locks to make consumption serial
