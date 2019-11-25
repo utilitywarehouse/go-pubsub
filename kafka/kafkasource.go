@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/bsm/sarama-cluster"
+	"github.com/utilitywarehouse/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
 	"golang.org/x/sync/errgroup"
 )
