@@ -108,7 +108,7 @@ func consumeContext(ctx context.Context, proximoAddress string, consumer string,
 		case err := <-errs:
 			return err
 		case <-localCtx.Done():
-			return nil //ctx.Err()
+			return nil // ctx.Err()
 		}
 
 	}
@@ -197,7 +197,7 @@ func (p *ProducerConn) Close() error {
 
 func (p *ProducerConn) start() error {
 
-	//	defer p.stream.CloseSend()
+	// 	defer p.stream.CloseSend()
 
 	confirmations := make(chan *Confirmation, 16) // TODO: make buffer size configurable?
 
@@ -283,4 +283,9 @@ func makeId() string {
 		panic(err)
 	}
 	return base64.URLEncoding.EncodeToString(random)
+}
+
+// GRPCClient returns grpc client connection
+func (p *ProducerConn) GRPCClient() *grpc.ClientConn {
+	return p.cc
 }
