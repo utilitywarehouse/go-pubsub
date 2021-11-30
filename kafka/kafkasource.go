@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/utilitywarehouse/sarama-cluster"
 	"github.com/utilitywarehouse/go-pubsub"
+	cluster "github.com/utilitywarehouse/sarama-cluster"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -67,6 +67,7 @@ func (mq *messageSource) ConsumeMessages(ctx context.Context, handler pubsub.Con
 	config.Consumer.Offsets.Initial = mq.offset
 	config.Metadata.RefreshFrequency = mq.metadataRefreshFrequency
 	config.Consumer.Offsets.Retention = mq.offsetsRetention
+	config.Consumer.Offsets.CommitInterval = time.Second
 
 	if mq.Version != nil {
 		config.Version = *mq.Version
